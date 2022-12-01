@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+
+from gouttelette.cmd import refresh_examples
+
+import pytest
+
+
+def test__task_to_string():
+    my_task = {
+        "name": "Some example",
+        "commad": "My fancy command",
+        "vars": {"foo": "bar"},
+    }
+    expectation = (
+        "- name: Some example\n"
+        "  commad: My fancy command\n"
+        "  vars:\n"
+        "    foo: bar"
+    )
+    assert refresh_examples._task_to_string(my_task) == expectation
+
+
+def test_get_nested_tasks(tmp_path):
+    d = tmp_path / "sub"
+    d.mkdir()
+    p = d / "my_playbook.yml"
+
+    p.write_text("- command: ls from include_task\n")
+    my_task = {"include_tasks": "my_playbook.yml"}
+    assert refresh_examples.get_nested_tasks(my_task, d) == [
+        {"command": "ls from include_task"}
+    ]
+
+    p.write_text("- command: ls from import_task\n")
+    my_task = {"import_tasks": "my_playbook.yml"}
+    assert refresh_examples.get_nested_tasks(my_task, d) == [
+        {"command": "ls from import_task"}
+    ]
+
+    my_task = {"command": "ls from task"}
+    assert refresh_examples.get_nested_tasks(my_task, d) == [
+        {"command": "ls from task"}
+    ]
+
+
+naive_variables = [
+    ("{{ foo_bar }}", "foo_bar"),
+    ("{{ not foo_bar }}", "foo_bar"),
+    ("{{ foo_bar.key }}", "foo_bar"),
+    ("{{ item }}", None),
+    ("{{ lookup('lookup are not supported') }}", None),
+]
+
+
+@pytest.mark.parametrize("in_val,out_val", naive_variables)
+def test_naive_variable_from_jinja2(in_val, out_val):
+    assert refresh_examples.naive_variable_from_jinja2(in_val) == out_val
+
+
+def test_list_dependencies():
+    assert refresh_examples.list_dependencies({"var": "{{ bar }}"}) == ["bar"]
+    assert refresh_examples.list_dependencies(
+        {"var": {"a": 1, "b": ["a", "b"]}, "with_items": "castor.lapon"}
+    ) == ["castor"]
+
+
+def test_extract_identify_valid_block():
+    my_tasks = [
+        {
+            "name": "This would be a great example",
+            "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
+        },
+        {
+            "name": "_name starts with an underscope",
+            "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
+        },
+        {"foo.bar.my_module": {"first_param": 1, "second_param": "a_string"}},
+        {"foo.bar.another_module": {}, "ingore_errors": True},
+        {"another.collection.another_module": {"g:": 1}},
+        {"assert": {"that": ["something"]}, "ignore_errors": True},
+    ]
+    expectation = {
+        "foo.bar.my_module": {
+            "blocks": [
+                {
+                    "name": "This would be a great example",
+                    "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
+                }
+            ]
+        }
+    }
+
+    assert refresh_examples.extract(my_tasks, "foo.bar") == expectation
+
+
+def test_extract_with_dependencies():
+    my_tasks = [
+        {
+            "name": "This would be a great example",
+            "another.collect.prepare_stuff": {
+                "first_param": 1,
+                "second_param": "a_string",
+            },
+            "register": "my_stuff",
+        },
+        {"name": "Define some facts", "set_fact": {"a_fact": True}},
+        {
+            "name": "This would be a great example",
+            "foo.bar.my_module": {
+                "first_param": "{{ a_fact }}",
+                "second_param": "{{ my_stuff }}",
+            },
+        },
+    ]
+    expectation = {
+        "foo.bar.my_module": {
+            "blocks": [
+                {"name": "Define some facts", "set_fact": {"a_fact": True}},
+                {
+                    "name": "This would be a great example",
+                    "another.collect.prepare_stuff": {
+                        "first_param": 1,
+                        "second_param": "a_string",
+                    },
+                    "register": "my_stuff",
+                },
+                {
+                    "name": "This would be a great example",
+                    "foo.bar.my_module": {
+                        "first_param": "{{ a_fact }}",
+                        "second_param": "{{ my_stuff }}",
+                    },
+                },
+            ]
+        }
+    }
+
+    assert refresh_examples.extract(my_tasks, "foo.bar") == expectation
+
+
+def test_extract_missing_dependency():
+    my_tasks = [
+        {
+            "name": "This would be a great example",
+            "foo.bar.my_module": {
+                "first_param": "{{ a_fact }}",
+                "second_param": "{{ my_stuff }}",
+            },
+        },
+    ]
+    with pytest.raises(refresh_examples.MissingDependency):
+        refresh_examples.extract(my_tasks, "foo.bar")
+
+
+def test_flatten_module_examples():
+    my_input = [
+        {"name": "First module", "foo.bar.my_module": {}},
+        {"name": "Second module", "foo.bar.my_module": {"param": 1}},
+    ]
+    expectation = (
+        "\n"
+        "- name: First module\n"
+        "  foo.bar.my_module: {}\n"
+        "\n"
+        "- name: Second module\n"
+        "  foo.bar.my_module:\n"
+        "    param: 1\n"
+    )
+    assert refresh_examples.flatten_module_examples(my_input) == expectation
+
+
+def test_flatten_module_examples_with_dup():
+    task = {"name": "Dup module", "foo.bar.my_module": {}}
+    my_input = [task] * 5
+    print(refresh_examples.flatten_module_examples(my_input))
+    expectation = "\n" "- name: Dup module\n" "  foo.bar.my_module: {}\n"
+    assert refresh_examples.flatten_module_examples(my_input) == expectation
+
+
+def test_inject_content(tmp_path):
+    target_dir = tmp_path / "my_collection"
+    module_dir = target_dir / "plugins" / "modules"
+    module_dir.mkdir(parents=True)
+    my_module = module_dir / "my_module.py"
+    my_module.write_text(
+        "blabal\n"
+        "EXAMPLES = r'''\n"
+        "existing example\n'''\n"
+        "the end of the module\n"
+    )
+    extracted_example = {
+        "foo.bar.my_module": {
+            "blocks": [
+                {
+                    "name": "A good fit fo the EXAMPLEs block",
+                    "foo.bar.my_module": {"param": 1},
+                }
+            ]
+        }
+    }
+    refresh_examples.inject(target_dir, extracted_example)
+    assert my_module.read_text() == (
+        "blabal\n"
+        "EXAMPLES = r'''\n"
+        "- name: A good fit fo the EXAMPLEs block\n"
+        "  foo.bar.my_module:\n"
+        "    param: 1\n"
+        "'''\n"
+        "the end of the module\n"
+    )
+
+    my_module.write_text("blabal\n" "EXAMPLES = r'''\n" "existing example\n")
+    with pytest.raises(refresh_examples.ContentInjectionFailure):
+        refresh_examples.inject(target_dir, extracted_example)
