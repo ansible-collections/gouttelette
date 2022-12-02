@@ -28,6 +28,9 @@ def format_documentation(documentation: Iterable) -> str:
             return input
         raise TypeError
 
+    import q
+
+    q(documentation)
     keys = [
         "module",
         "short_description",
@@ -46,10 +49,12 @@ def format_documentation(documentation: Iterable) -> str:
             continue
         if isinstance(documentation[i], str):
             sanitized = _sanitize(documentation[i])
+            q(sanitized)
         else:
             sanitized = documentation[i]
         final += yaml.dump({i: sanitized}, indent=4, default_flow_style=False)
     final += "'''"
+    q(final)
     return final
 
 
@@ -62,14 +67,14 @@ def indent(text_block: str, indent: int = 0) -> str:
         result += "\n"
     return result
 
+
 def get_module_from_config(module: str, generator: str):
-    raw_content = pkg_resources.resource_string(
-        generator, "config/modules.yaml"
-    )
+    raw_content = pkg_resources.resource_string(generator, "config/modules.yaml")
     for i in yaml.safe_load(raw_content):
         if module in i:
             return i[module]
     return False
+
 
 def python_type(value) -> str:
     TYPE_MAPPING = {
