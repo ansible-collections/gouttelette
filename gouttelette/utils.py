@@ -55,7 +55,7 @@ def format_documentation(documentation: Iterable) -> str:
 
 def indent(text_block: str, indent: int = 0) -> str:
     result: str = ""
-    
+
     for line in text_block.split("\n"):
         result += " " * indent
         result += line
@@ -64,13 +64,10 @@ def indent(text_block: str, indent: int = 0) -> str:
 
 
 def get_module_from_config(module: str, generator: str):
-    import q
-    q(module)
+
     raw_content = pkg_resources.resource_string(generator, "config/modules.yaml")
-    q(raw_content)
     for i in yaml.safe_load(raw_content):
         if module in i:
-            q(i[module])
             return i[module]
     return False
 

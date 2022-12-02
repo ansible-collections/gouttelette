@@ -37,7 +37,8 @@ def test_indent():
     input_arg = "\nTest indentation.\n4 space should be added\n"
     output = "    \n    Test indentation.\n    4 space should be added\n    \n"
     assert utils.indent(input_arg, 4) == output
-    
+
+
 def test_python_type():
     assert utils.python_type("object") == "dict"
     assert utils.python_type("string") == "str"
