@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 
 
-from typing import Dict, Iterable, List, Optional, TypedDict
+from dataclasses import dataclass
+from typing import Any, Dict, Iterable, List, Optional, TypedDict, Union
 import jinja2
-import yaml
 import pkg_resources
+import yaml
+from pathlib import Path
 
 
-def jinja2_renderer(template_file, generator, **kwargs):
+def jinja2_renderer(
+    template_file: str, generator: str, **kwargs: dict[str, Any]
+) -> str:
     templateLoader = jinja2.PackageLoader(generator)
     templateEnv = jinja2.Environment(loader=templateLoader)
     template = templateEnv.get_template(template_file)
     return template.render(kwargs)
 
 
-def format_documentation(documentation: Iterable) -> str:
-    yaml.Dumper.ignore_aliases = lambda *args: True
+def format_documentation(documentation: Any) -> str:
+    yaml.Dumper.ignore_aliases = lambda *args: True  # type: ignore
 
-    def _sanitize(input):
+    def _sanitize(input: Any) -> Any:
         if isinstance(input, str):
             return input.replace("':'", ":")
         if isinstance(input, list):
@@ -63,16 +67,16 @@ def indent(text_block: str, indent: int = 0) -> str:
     return result
 
 
-def get_module_from_config(module: str, generator: str):
+def get_module_from_config(module: str, generator: str) -> Any:
 
     raw_content = pkg_resources.resource_string(generator, "config/modules.yaml")
     for i in yaml.safe_load(raw_content):
         if module in i:
             return i[module]
-    return False
+    return {}
 
 
-def python_type(value) -> str:
+def python_type(value: str) -> str:
     TYPE_MAPPING = {
         "array": "list",
         "boolean": "bool",
@@ -81,19 +85,20 @@ def python_type(value) -> str:
         "object": "dict",
         "string": "str",
     }
-    if isinstance(value, list):
-        return TYPE_MAPPING.get(value[0], value)
     return TYPE_MAPPING.get(value, value)
 
 
+@dataclass
 class UtilsBase:
-    def is_trusted(self, generator: str) -> bool:
-        if get_module_from_config(self.name, generator) is False:
-            print(f"- do not build: {self.name}")
-        else:
-            return True
+    name: str
 
-    def write_module(self, target_dir: str, content: str):
+    def is_trusted(self, generator: str) -> bool:
+        if get_module_from_config(self.name, generator):
+            return True
+        print(f"- do not build: {self.name}")
+        return False
+
+    def write_module(self, target_dir: Path, content: str) -> None:
         module_dir = target_dir / "plugins" / "modules"
         module_dir.mkdir(parents=True, exist_ok=True)
         module_py_file = module_dir / "{name}.py".format(name=self.name)
