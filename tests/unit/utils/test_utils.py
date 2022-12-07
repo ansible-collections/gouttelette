@@ -45,3 +45,5 @@ def test_python_type():
     assert utils.python_type("array") == "list"
     assert utils.python_type("list") == "list"
     assert utils.python_type("boolean") == "bool"
+    assert utils.python_type(['object', 'string']) == "dict"
+    assert utils.python_type(['string', 'object']) == "str"
