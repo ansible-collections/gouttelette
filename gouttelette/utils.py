@@ -85,6 +85,8 @@ def python_type(value: str) -> str:
         "object": "dict",
         "string": "str",
     }
+    if isinstance(value, list):
+        return TYPE_MAPPING.get(value[0], value)
     return TYPE_MAPPING.get(value, value)
 
 
