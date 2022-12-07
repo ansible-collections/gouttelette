@@ -47,8 +47,11 @@ naive_variables = [
     ("{{ foo_bar }}", "foo_bar"),
     ("{{ not foo_bar }}", "foo_bar"),
     ("{{ foo_bar.key }}", "foo_bar"),
+    ("foobar{{ bar.key }}", "bar"),
     ("{{ item }}", None),
     ("{{ lookup('lookup are not supported') }}", None),
+    ("https://foo.bar", None),
+    ("(lib_items.value|first).id", "lib_items"),
 ]
 
 
