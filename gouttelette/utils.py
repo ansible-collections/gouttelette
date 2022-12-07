@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def jinja2_renderer(
-    template_file: str, generator: str, **kwargs: dict[str, Any]
+    template_file: str, generator: str, **kwargs: Dict[str, Any]
 ) -> str:
     templateLoader = jinja2.PackageLoader(generator)
     templateEnv = jinja2.Environment(loader=templateLoader)
