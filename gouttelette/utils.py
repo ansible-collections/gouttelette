@@ -7,6 +7,7 @@ import jinja2
 import pkg_resources
 import yaml
 from pathlib import Path
+from functools import lru_cache
 
 
 def jinja2_renderer(
@@ -88,6 +89,65 @@ def python_type(value: str) -> str:
     if isinstance(value, list):
         return TYPE_MAPPING.get(value[0], value)
     return TYPE_MAPPING.get(value, value)
+
+
+def run_git(git_dir: str, *args):
+    cmd = [
+        "git",
+        "--git-dir",
+        git_dir,
+    ]
+    for arg in args:
+        cmd.append(arg)
+    r = subprocess.run(cmd, text=True, capture_output=True)
+    return r.stdout.rstrip().split("\n")
+
+
+@lru_cache(maxsize=None)
+def file_by_tag(git_dir: str) -> Dict:
+    tags = run_git(git_dir, "tag")
+
+    files_by_tag: Dict = {}
+    for tag in tags:
+        files_by_tag[tag] = run_git(git_dir, "ls-tree", "-r", "--name-only", tag)
+
+    return files_by_tag
+
+
+def get_module_added_ins(module_name: str, git_dir: str) -> Dict:
+    added_ins = {"module": None, "options": {}}
+    module = f"plugins/modules/{module_name}.py"
+
+    for tag, files in file_by_tag(git_dir).items():
+        if "rc" in tag:
+            continue
+        if module in files:
+            if not added_ins["module"]:
+                added_ins["module"] = tag
+            content = "\n".join(
+                run_git(
+                    git_dir,
+                    "cat-file",
+                    "--textconv",
+                    f"{tag}:{module}",
+                )
+            )
+            try:
+                ast_file = redbaron.RedBaron(content)
+            except baron.BaronError as e:
+                print(f"Failed to parse {tag}:plugins/modules/{module_name}.py. {e}")
+                continue
+            doc_block = ast_file.find(
+                "assignment", target=lambda x: x.dumps() == "DOCUMENTATION"
+            )
+            if not doc_block or not doc_block.value:
+                print(f"Cannot find DOCUMENTATION block for module {module_name}")
+            doc_content = yaml.safe_load(doc_block.value.to_python())
+            for option in doc_content["options"]:
+                if option not in added_ins["options"]:
+                    added_ins["options"][option] = tag
+
+    return added_ins
 
 
 @dataclass
