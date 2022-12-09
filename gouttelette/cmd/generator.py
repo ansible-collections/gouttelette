@@ -371,9 +371,7 @@ def generate_documentation(
             "type": "str",
         }
 
-    module_from_config = get_module_from_config(
-        module_name
-    )
+    module_from_config = get_module_from_config(module_name)
     if module_from_config and "documentation" in module_from_config:
         for k, v in module_from_config["documentation"].items():
             documentation[k] = v

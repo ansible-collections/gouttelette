@@ -20,6 +20,7 @@ from gouttelette.utils import (
     UtilsBase,
     jinja2_renderer,
     get_module_added_ins,
+    get_module_from_config,
     python_type,
     get_generator,
     camel_to_snake,
@@ -309,9 +310,6 @@ def gen_documentation(name, description, parameters, added_ins, next_version):
         documentation["options"][normalized_name] = option
         parameter["added_in"] = next_version
 
-    raw_content = pkg_resources.resource_string(
-        "vmware_rest_code_generator", "config/modules.yaml"
-    )
     module_from_config = get_module_from_config(name)
     if module_from_config and "documentation" in module_from_config:
         for k, v in module_from_config["documentation"].items():
@@ -556,9 +554,11 @@ class AnsibleModuleBaseAmazon(UtilsBase):
 
         arguments = generate_argument_spec(documentation["options"])
         documentation_to_string = format_documentation(documentation)
+        import q
+
+        q(self.template_file)
         content = jinja2_renderer(
             self.template_file,
-            "amazon_cloud_code_generator",
             arguments=indent(arguments, 4),
             documentation=documentation_to_string,
             name=self.name,
@@ -628,7 +628,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
                 continue
             payload[operationId] = {"query": {}, "body": {}, "path": {}}
             payload_info = {}
-            for parameter in AnsibleModule._property_to_parameter(
+            for parameter in AnsibleModuleBaseVmware._property_to_parameter(
                 self.resource.operations[operationId][2], self.definitions, operationId
             ):
                 _in = parameter["in"] or "body"
@@ -679,7 +679,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
             if operationId not in self.resource.operations:
                 continue
 
-            for parameter in AnsibleModule._property_to_parameter(
+            for parameter in AnsibleModuleBaseVmware._property_to_parameter(
                 self.resource.operations[operationId][2], self.definitions, operationId
             ):
                 name = parameter["name"]
@@ -935,7 +935,6 @@ class AnsibleModuleBaseVmware(UtilsBase):
 
         content = jinja2_renderer(
             self.template_file,
-            "vmware_rest_code_generator",
             arguments=indent(arguments, 4),
             documentation=documentation,
             list_index=self.list_index(),
@@ -1209,6 +1208,11 @@ def generate_amazon_cloud(args):
     runtime_file = meta_dir / "runtime.yml"
     with open(runtime_file, "w") as file:
         yaml.safe_dump(yaml_dict, file, sort_keys=False)
+
+    collection_dir = pkg_resources.resource_filename("gouttelette", "data")
+    print(f"Copying collection from {collection_dir}")
+    shutil.copytree(collection_dir, args.target_dir, dirs_exist_ok=True)
+
     return
 
 
@@ -1231,10 +1235,7 @@ def generate_vmware_rest(args):
                 module = AnsibleInfoListOnlyModule(
                     resource, definitions=swagger_file.definitions
                 )
-                if (
-                    module.is_trusted()
-                    and len(module.default_operationIds) > 0
-                ):
+                if module.is_trusted() and len(module.default_operationIds) > 0:
                     module.renderer(
                         target_dir=args.target_dir, next_version=args.next_version
                     )
@@ -1243,10 +1244,7 @@ def generate_vmware_rest(args):
                 module = AnsibleInfoNoListModule(
                     resource, definitions=swagger_file.definitions
                 )
-                if (
-                    module.is_trusted()
-                    and len(module.default_operationIds) > 0
-                ):
+                if module.is_trusted() and len(module.default_operationIds) > 0:
                     module.renderer(
                         target_dir=args.target_dir, next_version=args.next_version
                     )
@@ -1256,10 +1254,7 @@ def generate_vmware_rest(args):
                 resource, definitions=swagger_file.definitions
             )
 
-            if (
-                module.is_trusted()
-                and len(module.default_operationIds) > 0
-            ):
+            if module.is_trusted() and len(module.default_operationIds) > 0:
                 module.renderer(
                     target_dir=args.target_dir, next_version=args.next_version
                 )
@@ -1268,9 +1263,7 @@ def generate_vmware_rest(args):
     module_utils_dir.mkdir(exist_ok=True)
     vmware_rest_dest = module_utils_dir / "vmware_rest.py"
     vmware_rest_dest.write_bytes(
-        pkg_resources.resource_string(
-            "vmware_rest_code_generator", "module_utils/vmware_rest.py"
-        )
+        pkg_resources.resource_string("gouttelette", "module_utils/vmware_rest.py")
     )
     return
 
@@ -1330,10 +1323,6 @@ def main():
             f"version: {info.version_string()}\n"
         )
     )
-
-    collection_dir = pkg_resources.resource_filename(generator["name"], "data")
-    print(f"Copying collection from {collection_dir}")
-    shutil.copytree(collection_dir, args.target_dir, dirs_exist_ok=True)
 
 
 if __name__ == "__main__":

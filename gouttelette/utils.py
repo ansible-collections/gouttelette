@@ -13,12 +13,14 @@ from pathlib import Path
 from functools import lru_cache
 
 
-def jinja2_renderer(
-    template_file: str, generator: str, **kwargs: Dict[str, Any]
-) -> str:
-    templateLoader = jinja2.PackageLoader("gouttelette")
+def jinja2_renderer(template_file: str, **kwargs: Dict[str, Any]) -> str:
+
+    template_path = re.sub("(.*)_code_generator", r"\1", get_generator()["name"])
+    templateLoader = jinja2.FileSystemLoader("gouttelette")
     templateEnv = jinja2.Environment(loader=templateLoader)
-    template = templateEnv.get_template(template_file)
+    template = templateEnv.get_template(
+        "templates/" + template_path + "/" + template_file
+    )
     return template.render(kwargs)
 
 
@@ -87,7 +89,10 @@ def indent(text_block: str, indent: int = 0) -> str:
 
 def get_module_from_config(module: str, generator: str) -> dict[str, Any]:
 
-    raw_content = pkg_resources.resource_string("gouttelette", "config/modules.yaml")
+    config_path = re.sub("(.*)_code_generator", r"\1", get_generator()["name"])
+    raw_content = pkg_resources.resource_string(
+        "gouttelette", "config/" + config_path + "/modules.yaml"
+    )
     for i in yaml.safe_load(raw_content):
         if module in i:
             return i[module] or {}
