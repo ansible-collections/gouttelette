@@ -47,8 +47,20 @@ naive_variables = [
     ("{{ foo_bar }}", "foo_bar"),
     ("{{ not foo_bar }}", "foo_bar"),
     ("{{ foo_bar.key }}", "foo_bar"),
+    ("{{ aws_region }}{{ item.zone }}", "aws_region"),
+    ("foobar{{ bar.key }}", "bar"),
     ("{{ item }}", None),
     ("{{ lookup('lookup are not supported') }}", None),
+    ("https://foo.bar", None),
+    (
+        '{{ (lib_items.value|selectattr("name", "equalto", "golden_image")|first).id }}',
+        "lib_items",
+    ),
+    # This is too complicated. Let's just ignore it.
+    (
+        "{{ {} | combine({ my_new_disk.id: {'policy': my_storage_policy.policy, 'type': 'USE_SPECIFIED_POLICY'} }) }}",
+        None,
+    ),
 ]
 
 
@@ -90,7 +102,7 @@ def test_extract_identify_valid_block():
         }
     }
 
-    assert refresh_examples.extract(my_tasks, "foo.bar") == expectation
+    assert refresh_examples.extract(my_tasks, "foo.bar", []) == expectation
 
 
 def test_extract_with_dependencies():
@@ -135,7 +147,7 @@ def test_extract_with_dependencies():
         }
     }
 
-    assert refresh_examples.extract(my_tasks, "foo.bar") == expectation
+    assert refresh_examples.extract(my_tasks, "foo.bar", []) == expectation
 
 
 def test_extract_missing_dependency():
@@ -149,7 +161,20 @@ def test_extract_missing_dependency():
         },
     ]
     with pytest.raises(refresh_examples.MissingDependency):
-        refresh_examples.extract(my_tasks, "foo.bar")
+        refresh_examples.extract(my_tasks, "foo.bar", [])
+
+
+def test_extract_with_dont_look_up_vars():
+    my_tasks = [
+        {
+            "name": "This would be a great example",
+            "foo.bar.my_module": {
+                "first_param": "{{ a_fact }}",
+                "second_param": "{{ my_stuff }}",
+            },
+        },
+    ]
+    refresh_examples.extract(my_tasks, "foo.bar", ["a_fact", "my_stuff"])
 
 
 def test_flatten_module_examples():

@@ -5,6 +5,7 @@ import collections
 import io
 from pathlib import Path
 from typing import Dict, List, Any, Union
+import re
 import ruamel.yaml
 import yaml
 
@@ -64,14 +65,23 @@ def get_tasks(target_dir: Path, play: str = "main.yml") -> List[TaskType]:
     return tasks
 
 
-def naive_variable_from_jinja2(raw: str) -> Union[None | str]:
-    jinja2_string = raw.strip(" }{}")
+def naive_variable_from_jinja2(raw: str) -> Union[None, str]:
+    jinja2_string = raw.strip(" ")
+
     if "lookup(" in jinja2_string:
         return None
+    if m := re.search(r".*?{{\s*(.*?(?!}}).*?)\s*}}", jinja2_string):
+        jinja2_string = m.group(1)
+    if m := re.search(r"^\((.*)\).*", jinja2_string):
+        jinja2_string = m.group(1)
     if jinja2_string.startswith("not "):
         jinja2_string = jinja2_string[4:]
     variable = jinja2_string.split(".")[0]
+    if re.search("[/:]", variable):
+        return None
     if variable == "item":
+        return None
+    if " " in variable:
         return None
     return variable
 
@@ -102,7 +112,12 @@ def list_dependencies(value: Any) -> List[str]:
     return sorted(list(set(dependencies)))
 
 
-def extract(tasks: List[TaskType], collection_name: str) -> Dict[str, Any]:
+def extract(
+    tasks: List[TaskType],
+    collection_name: str,
+    dont_look_up_vars: List[str],
+    include_task_with_docs_tag: bool = False,
+) -> Dict[str, Any]:
     by_modules: Dict[str, Any] = collections.defaultdict(dict)
     registers: Dict[str, Any] = {}
 
@@ -116,6 +131,8 @@ def extract(tasks: List[TaskType], collection_name: str) -> Dict[str, Any]:
 
         depends_on = []
         for r in list_dependencies(value=task):
+            if r in dont_look_up_vars:
+                continue
             if r not in registers:
                 raise MissingDependency(
                     f"task: {task['name']}\nCannot find key '{r}' in the known variables: {registers.keys()}"
@@ -130,6 +147,10 @@ def extract(tasks: List[TaskType], collection_name: str) -> Dict[str, Any]:
             else:
                 registers[task["register"]] = depends_on + [task]
 
+        if "ansible.builtin.set_fact" in task:
+            for fact_name in task["ansible.builtin.set_fact"]:
+                registers[fact_name] = depends_on + [task]
+
         if "set_fact" in task:
             for fact_name in task["set_fact"]:
                 registers[fact_name] = depends_on + [task]
@@ -141,6 +162,12 @@ def extract(tasks: List[TaskType], collection_name: str) -> Dict[str, Any]:
                 break
         if not module_fqcn:
             continue
+
+        if include_task_with_docs_tag:
+            if "docs" in task.get("tags", []):
+                del task["tags"]
+            else:
+                continue
 
         if module_fqcn not in by_modules:
             by_modules[module_fqcn] = {
@@ -178,11 +205,13 @@ def inject(
         )
         new_content = ""
         in_examples_block = False
+        closing_pattern = None
         for l in module_path.read_text().split("\n"):
-            if l == "EXAMPLES = r'''":
+            if m := re.search(r"^EXAMPLES\s+=\s+(|r)('{3}|\"{3})$", l):
+                closing_pattern = m.group(2)
                 in_examples_block = True
                 new_content += l + "\n" + examples_section_to_inject.lstrip("\n")
-            elif in_examples_block and l == "'''":
+            elif closing_pattern and l == closing_pattern:
                 in_examples_block = False
                 new_content += l + "\n"
             elif in_examples_block:
@@ -193,6 +222,8 @@ def inject(
             raise ContentInjectionFailure(
                 "The closing of the EXAMPLES block was not found."
             )
+        if closing_pattern is None:
+            raise ContentInjectionFailure("The EXAMPLES block was not updated.")
         new_content = new_content.rstrip("\n") + "\n"
         print(f"Updating {module_name}")
         module_path.write_text(new_content)
@@ -211,10 +242,14 @@ def main() -> None:
     args = parser.parse_args()
     galaxy_file = args.target_dir / "galaxy.yml"
     galaxy = yaml.safe_load(galaxy_file.open())
+    gouttelette_file = args.target_dir / "gouttelette.yml"
+    gouttelette = yaml.safe_load(gouttelette_file.open())
     collection_name = f"{galaxy['namespace']}.{galaxy['name']}"
     tasks = []
-    test_scenarios_dir = args.target_dir / "tests" / "integration" / "targets"
-    for scenario_dir in test_scenarios_dir.glob("*"):
+    test_scenarios_dirs = [
+        args.target_dir / Path(i) for i in gouttelette["examples"]["load_from"]
+    ]
+    for scenario_dir in test_scenarios_dirs:
         if not scenario_dir.is_dir():
             continue
         if scenario_dir.name.startswith("setup_"):
@@ -222,7 +257,14 @@ def main() -> None:
         task_dir = scenario_dir / "tasks"
         tasks += get_tasks(task_dir)
 
-    extracted_examples = extract(tasks, collection_name)
+    extracted_examples = extract(
+        tasks,
+        collection_name,
+        dont_look_up_vars=gouttelette["examples"]["dont_look_up_vars"],
+        include_task_with_docs_tag=gouttelette["examples"][
+            "include_task_with_docs_tag"
+        ],
+    )
     inject(args.target_dir, extracted_examples)
 
 
