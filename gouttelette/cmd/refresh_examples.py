@@ -70,12 +70,9 @@ def naive_variable_from_jinja2(raw: str) -> Union[None, str]:
 
     if "lookup(" in jinja2_string:
         return None
-
-    if m := re.search(r"^{{\s+(.*?)\s+}}$", jinja2_string):
+    if m := re.search(r".*?{{\s*(.*?(?!}}).*?)\s*}}", jinja2_string):
         jinja2_string = m.group(1)
     if m := re.search(r"^\((.*)\).*", jinja2_string):
-        jinja2_string = m.group(1)
-    if m := re.search(r".*{{\s*(\S*)\s*}}.*", jinja2_string):
         jinja2_string = m.group(1)
     if jinja2_string.startswith("not "):
         jinja2_string = jinja2_string[4:]
@@ -83,6 +80,8 @@ def naive_variable_from_jinja2(raw: str) -> Union[None, str]:
     if re.search("[/:]", variable):
         return None
     if variable == "item":
+        return None
+    if " " in variable:
         return None
     return variable
 
@@ -113,7 +112,12 @@ def list_dependencies(value: Any) -> List[str]:
     return sorted(list(set(dependencies)))
 
 
-def extract(tasks: List[TaskType], collection_name: str) -> Dict[str, Any]:
+def extract(
+    tasks: List[TaskType],
+    collection_name: str,
+    dont_look_up_vars: List[str],
+    include_task_with_docs_tag: bool = False,
+) -> Dict[str, Any]:
     by_modules: Dict[str, Any] = collections.defaultdict(dict)
     registers: Dict[str, Any] = {}
 
@@ -127,6 +131,8 @@ def extract(tasks: List[TaskType], collection_name: str) -> Dict[str, Any]:
 
         depends_on = []
         for r in list_dependencies(value=task):
+            if r in dont_look_up_vars:
+                continue
             if r not in registers:
                 raise MissingDependency(
                     f"task: {task['name']}\nCannot find key '{r}' in the known variables: {registers.keys()}"
@@ -156,6 +162,12 @@ def extract(tasks: List[TaskType], collection_name: str) -> Dict[str, Any]:
                 break
         if not module_fqcn:
             continue
+
+        if include_task_with_docs_tag:
+            if "docs" in task.get("tags", []):
+                del task["tags"]
+            else:
+                continue
 
         if module_fqcn not in by_modules:
             by_modules[module_fqcn] = {
@@ -235,7 +247,7 @@ def main() -> None:
     collection_name = f"{galaxy['namespace']}.{galaxy['name']}"
     tasks = []
     test_scenarios_dirs = [
-        args.target_dir / Path(i) for i in gouttelette.get("load_examples_from", [])
+        args.target_dir / Path(i) for i in gouttelette["examples"]["load_from"]
     ]
     for scenario_dir in test_scenarios_dirs:
         if not scenario_dir.is_dir():
@@ -245,7 +257,14 @@ def main() -> None:
         task_dir = scenario_dir / "tasks"
         tasks += get_tasks(task_dir)
 
-    extracted_examples = extract(tasks, collection_name)
+    extracted_examples = extract(
+        tasks,
+        collection_name,
+        dont_look_up_vars=gouttelette["examples"]["dont_look_up_vars"],
+        include_task_with_docs_tag=gouttelette["examples"][
+            "include_task_with_docs_tag"
+        ],
+    )
     inject(args.target_dir, extracted_examples)
 
 
