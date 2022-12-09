@@ -76,22 +76,29 @@ def test_list_dependencies():
     ) == ["castor"]
 
 
-def test_extract_identify_valid_block():
-    my_tasks = [
-        {
-            "name": "This would be a great example",
-            "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
-        },
-        {
-            "name": "_name starts with an underscope",
-            "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
-        },
-        {"foo.bar.my_module": {"first_param": 1, "second_param": "a_string"}},
-        {"foo.bar.another_module": {}, "ingore_errors": True},
-        {"another.collection.another_module": {"g:": 1}},
-        {"assert": {"that": ["something"]}, "ignore_errors": True},
-    ]
+my_tasks = [
+    {
+        "name": "This would be a great example",
+        "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
+    },
+    {
+        "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
+        "tags": ["docs"],
+    },
+    {
+        "name": "_name starts with an underscope",
+        "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
+    },
+    {"foo.bar.my_module": {"first_param": 1, "second_param": "a_string"}},
+    {"foo.bar.another_module": {}, "ingore_errors": True},
+    {"another.collection.another_module": {"g:": 1}},
+    {"assert": {"that": ["something"]}, "ignore_errors": True},
+]
+
+
+def test_extract_identify_valid_block_using_name():
     expectation = {
+        "foo.bar.another_module": {"blocks": []},
         "foo.bar.my_module": {
             "blocks": [
                 {
@@ -99,10 +106,29 @@ def test_extract_identify_valid_block():
                     "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
                 }
             ]
-        }
+        },
     }
+    assert (
+        refresh_examples.extract(my_tasks, "foo.bar", []) == expectation == expectation
+    )
 
-    assert refresh_examples.extract(my_tasks, "foo.bar", []) == expectation
+
+def test_extract_identify_valid_block_using_tag():
+    expectation = {
+        "foo.bar.another_module": {"blocks": []},
+        "foo.bar.my_module": {
+            "blocks": [
+                {
+                    "foo.bar.my_module": {"first_param": 1, "second_param": "a_string"},
+                    "tags": ["docs"],
+                }
+            ]
+        },
+    }
+    assert (
+        refresh_examples.extract(my_tasks, "foo.bar", [], task_selector="tag")
+        == expectation
+    )
 
 
 def test_extract_with_dependencies():
