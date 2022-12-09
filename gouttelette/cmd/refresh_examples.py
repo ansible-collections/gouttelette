@@ -4,7 +4,7 @@ import argparse
 import collections
 import io
 from pathlib import Path
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Union, Callable
 import re
 import ruamel.yaml
 import yaml
@@ -22,10 +22,13 @@ TaskType = Dict[str, Any]
 
 
 def _task_to_string(task: TaskType) -> str:
+    sanatized_task = {
+        k: v for k, v in task.items() if k not in ["ignore_errors", "tags"]
+    }
     a = io.StringIO()
     _yaml = ruamel.yaml.YAML()
     _yaml.width = 160  # type: ignore
-    _yaml.dump([task], a)
+    _yaml.dump([sanatized_task], a)
     a.seek(0)
     return a.read().rstrip()
 
@@ -116,19 +119,23 @@ def extract(
     tasks: List[TaskType],
     collection_name: str,
     dont_look_up_vars: List[str],
-    include_task_with_docs_tag: bool = False,
+    task_selector: str = "name",
 ) -> Dict[str, Any]:
     by_modules: Dict[str, Any] = collections.defaultdict(dict)
     registers: Dict[str, Any] = {}
 
+    def valid_task(task: Dict[str, Any]) -> bool:
+        if task_selector == "tag":
+            return "docs" in task.get("tags", [])
+        elif task_selector == "name":
+            try:
+                return not task["name"].startswith("_")
+            except KeyError:
+                return False
+        else:
+            raise ValueError
+
     for task in tasks:
-        if "name" not in task:
-            continue
-
-        if task["name"].startswith("_"):
-            print(f"Skip task {task['name']} because of the _")
-            continue
-
         depends_on = []
         for r in list_dependencies(value=task):
             if r in dont_look_up_vars:
@@ -141,8 +148,8 @@ def extract(
             depends_on += registers[r]
 
         if "register" in task:
-            if task["register"].startswith("_"):
-                print(f"Hiding register {task['register']} because of the _ prefix.")
+            if not valid_task(task):
+                print(f"Hiding register {task['register']}.")
                 del task["register"]
             else:
                 registers[task["register"]] = depends_on + [task]
@@ -163,17 +170,12 @@ def extract(
         if not module_fqcn:
             continue
 
-        if include_task_with_docs_tag:
-            if "docs" in task.get("tags", []):
-                del task["tags"]
-            else:
-                continue
-
         if module_fqcn not in by_modules:
             by_modules[module_fqcn] = {
                 "blocks": [],
             }
-        by_modules[module_fqcn]["blocks"] += depends_on + [task]
+        if valid_task(task):
+            by_modules[module_fqcn]["blocks"] += depends_on + [task]
 
     return by_modules
 
@@ -261,9 +263,7 @@ def main() -> None:
         tasks,
         collection_name,
         dont_look_up_vars=gouttelette["examples"]["dont_look_up_vars"],
-        include_task_with_docs_tag=gouttelette["examples"][
-            "include_task_with_docs_tag"
-        ],
+        task_selector=gouttelette["examples"]["task_selector"],
     )
     inject(args.target_dir, extracted_examples)
 
