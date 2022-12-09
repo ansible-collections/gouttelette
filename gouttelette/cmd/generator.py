@@ -10,11 +10,10 @@ from typing import Iterable, List, Dict
 from gouttelette.utils import (
     python_type,
     get_module_from_config,
+    scrub_keys,
+    camel_to_snake,
+    ensure_description,
 )
-
-from .utils import scrub_keys
-from .utils import camel_to_snake
-from .utils import ensure_description
 
 
 class Description:
@@ -373,7 +372,7 @@ def generate_documentation(
         }
 
     module_from_config = get_module_from_config(
-        module_name, "amazon_cloud_code_generator"
+        module_name
     )
     if module_from_config and "documentation" in module_from_config:
         for k, v in module_from_config["documentation"].items():

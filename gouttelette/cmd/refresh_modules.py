@@ -7,12 +7,9 @@ import json
 import pathlib
 import re
 import shutil
-import subprocess
 import pkg_resources
 from pbr.version import VersionInfo
 from .content_library_data import content_library_static_ds
-import baron
-import redbaron
 import yaml
 import json
 import copy
@@ -24,14 +21,15 @@ from gouttelette.utils import (
     jinja2_renderer,
     get_module_added_ins,
     python_type,
+    get_generator,
+    camel_to_snake,
+    ignore_description,
 )
 
 from typing import Dict, Iterable, List, DefaultDict, Union
 
 from .resources import RESOURCES
 from .generator import generate_documentation
-from .utils import camel_to_snake
-from .utils import ignore_description
 
 
 # vmware specific
@@ -188,7 +186,7 @@ class Description:
 
 
 def gen_documentation(name, description, parameters, added_ins, next_version):
-    
+
     short_description = description.split(". ")[0]
     documentation = {
         "author": ["Ansible Cloud Team (@ansible-collections)"],
@@ -314,7 +312,7 @@ def gen_documentation(name, description, parameters, added_ins, next_version):
     raw_content = pkg_resources.resource_string(
         "vmware_rest_code_generator", "config/modules.yaml"
     )
-    module_from_config = get_module_from_config(name, "vmware_rest_code_generator")
+    module_from_config = get_module_from_config(name)
     if module_from_config and "documentation" in module_from_config:
         for k, v in module_from_config["documentation"].items():
             documentation[k] = v
@@ -439,7 +437,7 @@ class Resource:
         self.summary = {}
 
 
-# amazon.cloud specific    
+# amazon.cloud specific
 def generate_params(definitions: Iterable) -> str:
     params: str = ""
     keys = sorted(
@@ -492,7 +490,50 @@ def generate_argument_spec(options: Dict) -> str:
     return argument_spec
 
 
-class AnsibleModule(UtilsBase):
+# common procs
+def gen_required_if(schema: Union[List, Dict]) -> List:
+    if isinstance(schema, dict):
+        primary_idenfifier = schema.get("primaryIdentifier", [])
+        required = schema.get("required", [])
+        entries: List = []
+        states = ["absent", "get"]
+
+        _primary_idenfifier = copy.copy(primary_idenfifier)
+
+        # For compound primary identifiers consisting of multiple resource properties strung together,
+        # use the property values in the order that they are specified in the primary identifier definition
+        if len(primary_idenfifier) > 1:
+            entries.append(["state", "list", primary_idenfifier[:-1], True])
+            _primary_idenfifier.append("identifier")
+
+        entries.append(
+            [
+                "state",
+                "present",
+                list(set([*_primary_idenfifier, *required])),
+                True,
+            ]
+        )
+        [
+            entries.append(["state", state, _primary_idenfifier, True])
+            for state in states
+        ]
+    else:
+        by_states = DefaultDict(list)
+        for parameter in schema:
+            for operation in parameter.get("_required_with_operations", []):
+                by_states[ansible_state(operation)].append(parameter["name"])
+        entries = []
+        for operation, fields in by_states.items():
+            state = ansible_state(operation)
+            if "state" in entries:
+                entries.append(["state", state, sorted(set(fields)), True])
+
+    return entries
+
+
+# Classes
+class AnsibleModuleBaseAmazon(UtilsBase):
     template_file = "default_module.j2"
 
     def __init__(self, schema: Iterable):
@@ -535,34 +576,230 @@ class AnsibleModule(UtilsBase):
 
         self.write_module(target_dir, content)
 
-# common procs
-def gen_required_if(self, schema: Union[List, Dict]) -> List:
-    if isinstance(schema, dict):
-        primary_idenfifier = schema.get("primaryIdentifier", [])
-        required = schema.get("required", [])
-        entries: List = []
-        states = ["absent", "get"]
 
-        _primary_idenfifier = copy.copy(primary_idenfifier)
+class AnsibleModuleBaseVmware(UtilsBase):
+    template_file = "default_module.j2"
 
-        # For compound primary identifiers consisting of multiple resource properties strung together,
-        # use the property values in the order that they are specified in the primary identifier definition
-        if len(primary_idenfifier) > 1:
-            entries.append(["state", "list", primary_idenfifier[:-1], True])
-            _primary_idenfifier.append("identifier")
-
-        entries.append(
-            [
-                "state",
-                "present",
-                list(set([*_primary_idenfifier, *required])),
-                True,
-            ]
+    def __init__(self, resource, definitions):
+        self.resource = resource
+        self.definitions = definitions
+        self.name = resource.name
+        self.default_operationIds = set(list(self.resource.operations.keys())) - set(
+            ["get", "list"]
         )
-        [entries.append(["state", state, _primary_idenfifier, True]) for state in states]
-    else:
+
+    def description(self):
+        prefered_operationId = ["get", "list", "create", "get", "set"]
+        for operationId in prefered_operationId:
+            if operationId not in self.default_operationIds:
+                continue
+            if operationId in self.resource.summary:
+                return self.resource.summary[operationId].split("\n")[0]
+
+        for operationId in sorted(self.default_operationIds):
+            if operationId in self.resource.summary:
+                return self.resource.summary[operationId].split("\n")[0]
+
+        print(f"generic description: {self.name}")
+        return f"Handle resource of type {self.name}"
+
+    def get_path(self):
+        return list(self.resource.operations.values())[0][1]
+
+    def list_index(self):
+        for i in ["get", "update", "delete"]:
+            if i not in self.resource.operations:
+                continue
+            path = self.resource.operations[i][1]
+            break
+        else:
+            return
+
+        m = re.search(r"{([-\w]+)}$", path)
+        if m:
+            return m.group(1)
+
+    def payload(self):
+        """ "Return a structure that describe the format of the data to send back."""
+        payload = {}
+        # for operationId in self.resource.operations:
+        for operationId in self.default_operationIds:
+            if operationId not in self.resource.operations:
+                continue
+            payload[operationId] = {"query": {}, "body": {}, "path": {}}
+            payload_info = {}
+            for parameter in AnsibleModule._property_to_parameter(
+                self.resource.operations[operationId][2], self.definitions, operationId
+            ):
+                _in = parameter["in"] or "body"
+
+                payload_info = parameter["_loc_in_payload"]
+                payload[operationId][_in][parameter["name"]] = payload_info
+        return payload
+
+    def answer(self):
+        # This is arguably not super elegant. The list outputs just include a summary of the resources,
+        # with this little transformation, we get access to the full item
+        output_format = None
+        for i in ["list", "get"]:
+            if i in self.resource.operations:
+                output_format = self.resource.operations[i][3]["200"]
+        if not output_format:
+            return
+
+        if "items" in output_format["schema"]:
+            ref = (
+                output_format["schema"]["items"]
+                .get("$ref", "")
+                .replace("Summary", "Info")
+            )
+        elif "schema" in output_format:
+            ref = output_format["schema"].get("$ref")
+        else:
+            ref = output_format.get("$ref")
+
+        if not ref:
+            return
+        try:
+            raw_answer = flatten_ref({"$ref": ref}, self.definitions)
+        except KeyError:
+            return
+        if "properties" in raw_answer:
+            return raw_answer["properties"].keys()
+
+    def parameters(self):
+        def sort_operationsid(input):
+            output = sorted(input)
+            if "create" in output:
+                output = ["create"] + output
+            return output
+
+        results = {}
+        for operationId in sort_operationsid(self.default_operationIds):
+            if operationId not in self.resource.operations:
+                continue
+
+            for parameter in AnsibleModule._property_to_parameter(
+                self.resource.operations[operationId][2], self.definitions, operationId
+            ):
+                name = parameter["name"]
+                if name not in results:
+                    results[name] = parameter
+                    results[name]["operationIds"] = []
+                    results[name]["_required_with_operations"] = []
+
+                # Merging two parameters, for instance "action" in
+                # /rest/vcenter/vm-template/library-items/{template_library_item}/check-outs
+                # and
+                # /rest/vcenter/vm-template/library-items/{template_library_item}/check-outs/{vm}
+                if "description" not in parameter:
+                    pass
+                elif "description" not in results[name]:
+                    results[name]["description"] = parameter.get("description")
+                elif results[name]["description"] != parameter.get("description"):
+                    # We can hardly merge two description strings and
+                    # get magically something meaningful
+                    if len(parameter["description"]) > len(
+                        results[name]["description"]
+                    ):
+                        results[name]["description"] = parameter["description"]
+                if "enum" in parameter:
+                    results[name]["enum"] += parameter["enum"]
+                    results[name]["enum"] = sorted(set(results[name]["enum"]))
+
+                results[name]["operationIds"].append(operationId)
+                results[name]["operationIds"].sort()
+                if "subkeys" in parameter:
+                    if "subkeys" not in results[name]:
+                        results[name]["subkeys"] = {}
+                    for sub_k, sub_v in parameter["subkeys"].items():
+                        if sub_k in results[name]["subkeys"]:
+                            results[name]["subkeys"][sub_k][
+                                "_required_with_operations"
+                            ] += sub_v["_required_with_operations"]
+                            results[name]["subkeys"][sub_k]["_operationIds"] += sub_v[
+                                "_operationIds"
+                            ]
+                            results[name]["subkeys"][sub_k]["description"] = sub_v[
+                                "description"
+                            ]
+                        else:
+                            results[name]["subkeys"][sub_k] = sub_v
+
+                if parameter.get("required"):
+                    results[name]["_required_with_operations"].append(operationId)
+
+        answer_fields = self.answer()
+        # Note: If the final result comes with a "label" field, we expose a "label"
+        # parameter. We will use the field to identify an existing resource.
+        if answer_fields and "label" in answer_fields:
+            results["label"] = {
+                "type": "str",
+                "name": "label",
+                "description": "The name of the item",
+            }
+
+        for name, result in results.items():
+            if result.get("enum"):
+                result["enum"] = sorted(set(result["enum"]))
+            if result.get("required"):
+                if (
+                    len(set(self.default_operationIds) - set(result["operationIds"]))
+                    > 0
+                ):
+
+                    required_with = []
+                    for i in result["operationIds"]:
+                        state = ansible_state(i, self.default_operationIds)
+                        if state:
+                            required_with.append(state)
+                    result["description"] += " Required with I(state={})".format(
+                        sorted(set(required_with))
+                    )
+                    del result["required"]
+                else:
+                    result["description"] += " This parameter is mandatory."
+
+        states = []
+        for operation in sorted(list(self.default_operationIds)):
+            if operation in ["create", "update"]:
+                states.append("present")
+            elif operation == "delete":
+                states.append("absent")
+            else:
+                states.append(operation)
+
+        results["state"] = {
+            "name": "state",
+            "type": "str",
+            "enum": sorted(set(states)),
+        }
+        if "present" in states:
+            results["state"]["default"] = "present"
+        elif "set" in states:
+            results["state"]["default"] = "set"
+        elif states:
+            results["state"]["required"] = True
+
+        # There is just one possible operation, we remove the "state" parameter
+        if len(self.resource.operations) == 1:
+            del results["state"]
+
+        # Suppport pre 7.0.2 filters
+        if "list" in self.default_operationIds or "get" in self.default_operationIds:
+            for i in ["datacenters", "folders", "names"]:
+                if i in results and results[i]["type"] == "array":
+                    results[i]["aliases"] = [f"filter_{i}"]
+            if "type" in results and results["type"]["type"] == "string":
+                results["type"]["aliases"] = ["filter_type"]
+            if "types" in results and results["types"]["type"] == "array":
+                results["types"]["aliases"] = ["filter_types"]
+
+        return sorted(results.values(), key=lambda item: item["name"])
+
+    def gen_required_if(self, parameters):
         by_states = DefaultDict(list)
-        for parameter in schema:
+        for parameter in parameters:
             for operation in parameter.get("_required_with_operations", []):
                 by_states[ansible_state(operation)].append(parameter["name"])
         entries = []
@@ -570,33 +807,282 @@ def gen_required_if(self, schema: Union[List, Dict]) -> List:
             state = ansible_state(operation)
             if "state" in entries:
                 entries.append(["state", state, sorted(set(fields)), True])
+        return entries
 
-    return entries
+    @staticmethod
+    def _property_to_parameter(prop_struct, definitions, operationId):
+        properties = flatten_ref(prop_struct, definitions)
+
+        def get_next(properties):
+            required_keys = []
+            for i, v in enumerate(properties):
+                required = v.get("required")
+                if "schema" in v:
+                    if "properties" in v["schema"]:
+                        properties[i] = v["schema"]["properties"]
+                        if "required" in v["schema"]:
+                            required_keys = v["schema"]["required"]
+                    elif "additionalProperties" in v["schema"]:
+                        properties[i] = v["schema"]["additionalProperties"][
+                            "properties"
+                        ]
+
+            for i, v in enumerate(properties):
+                # appliance_health_messages
+                if isinstance(v, str):
+                    yield v, {}, [], []
+
+                elif "spec" in v and "properties" in v["spec"]:
+                    required_keys = required_keys or []
+                    if "required" in v["spec"]:
+                        required_keys = v["spec"]["required"]
+                    for name, property in v["spec"]["properties"].items():
+                        yield name, property, ["spec"], name in required_keys
+
+                elif isinstance(v, dict):
+                    if not isinstance(v, dict):
+                        continue
+                    # {'type': 'string', 'required': True, 'in': 'path', 'name': 'datacenter', 'description': 'Identifier of the datacenter.'}
+                    if "name" in v and "in" in v and v.get("in") in ["path", "query"]:
+                        yield v["name"], v, [], v.get("required")
+                    # elif "name" in v and isinstance(v["name", dict]):
+                    #    yield v["name"], v, [], v.get("required")
+                    else:
+                        for k, data in v.items():
+                            if isinstance(data, dict):
+                                yield k, data, [], k in required_keys or data.get(
+                                    "required"
+                                )
+
+        parameters = []
+
+        for name, v, parent, required in get_next(properties):
+            if name == "request_body":
+                raise ValueError()
+            parameter = {
+                "name": name,
+                "type": v.get("type", "str"),  # 'str' by default, should be ok
+                "description": v.get("description", ""),
+                "required": required,
+                "_loc_in_payload": "/".join(parent + [name]),
+                "in": v.get("in"),
+            }
+            if "enum" in v:
+                parameter["enum"] = sorted(set(v["enum"]))
+
+            sub_items = None
+            required_subkeys = v.get("required", [])
+
+            if "properties" in v:
+                sub_items = v["properties"]
+                if "required" in v["properties"]:  # NOTE: do we still need these
+                    required_subkeys = v["properties"]["required"]
+            elif "items" in v and "properties" in v["items"]:
+                sub_items = v["items"]["properties"]
+                if "required" in v["items"]:  # NOTE: do we still need these
+                    required_subkeys = v["items"]["required"]
+            elif "items" in v and "name" not in v["items"]:
+                parameter["elements"] = v["items"].get("type", "str")
+            elif "items" in v and v["items"]["name"]:
+                sub_items = v["items"]
+
+            if sub_items:
+                subkeys = {}
+                for sub_k, sub_v in sub_items.items():
+                    subkey = {
+                        "name": sub_k,
+                        "type": sub_v["type"],
+                        "description": sub_v.get("description", ""),
+                        "_required_with_operations": [operationId]
+                        if sub_k in required_subkeys
+                        else [],
+                        "_operationIds": [operationId],
+                    }
+                    if "enum" in sub_v:
+                        subkey["enum"] = sub_v["enum"]
+                    if "properties" in sub_v:
+                        subkey["properties"] = sub_v["properties"]
+                    subkeys[sub_k] = subkey
+                parameter["subkeys"] = subkeys
+                parameter["elements"] = "dict"
+            parameters.append(parameter)
+
+        return sorted(
+            parameters, key=lambda item: (item["name"], item.get("description"))
+        )
+
+    def list_path(self):
+        list_path = None
+        if "list" in self.resource.operations:
+            list_path = self.resource.operations["list"][1]
+
+        return list_path
+
+    def renderer(self, target_dir, next_version):
+
+        added_ins = {}  # get_module_added_ins(self.name, git_dir=target_dir / ".git")
+        arguments = gen_arguments_py(self.parameters(), self.list_index())
+        documentation = format_documentation(
+            gen_documentation(
+                self.name,
+                self.description(),
+                self.parameters(),
+                added_ins,
+                next_version,
+            )
+        )
+        required_if = gen_required_if(self.parameters())
+
+        content = jinja2_renderer(
+            self.template_file,
+            "vmware_rest_code_generator",
+            arguments=indent(arguments, 4),
+            documentation=documentation,
+            list_index=self.list_index(),
+            list_path=self.list_path(),
+            name=self.name,
+            operations=self.resource.operations,
+            path=self.get_path(),
+            payload_format=self.payload(),
+            required_if=required_if,
+        )
+
+        self.write_module(target_dir, content)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Build the amazon.cloud modules.")
-    parser.add_argument(
-        "--target-dir",
-        dest="target_dir",
-        type=pathlib.Path,
-        default=pathlib.Path("cloud"),
-        help="location of the target repository (default: ./cloud)",
-    )
-    parser.add_argument(
-        "--next-version",
-        type=str,
-        default="TODO",
-        help="the next major version",
-    )
-    parser.add_argument(
-        "--schema-dir",
-        type=pathlib.Path,
-        default=pathlib.Path("amazon_cloud_code_generator/api_specifications"),
-        help="location where to store the collected schemas (default: ./amazon_cloud_code_generator/api_specifications)",
-    )
-    args = parser.parse_args()
+class AnsibleInfoModule(AnsibleModuleBaseVmware):
+    def __init__(self, resource, definitions):
+        super().__init__(resource, definitions)
+        self.name = resource.name + "_info"
+        self.default_operationIds = ["get", "list"]
 
+    def parameters(self):
+        return [i for i in list(super().parameters()) if i["name"] != "state"]
+
+
+class AnsibleInfoNoListModule(AnsibleInfoModule):
+    template_file = "info_no_list_module.j2"
+
+
+class AnsibleInfoListOnlyModule(AnsibleInfoModule):
+    template_file = "info_list_and_get_module.j2"
+
+
+class Definitions:
+    def __init__(self, data):
+        super().__init__()
+        self.definitions = data
+
+    def get(self, ref):
+        if isinstance(ref, dict):
+            # TODO: standardize the input to avoid this step
+            dotted = ref["$ref"].split("/")[2]
+        else:
+            dotted = ref
+
+        try:
+            definition = self.definitions[dotted]
+        except KeyError:
+            definition = self.definitions["com.vmware." + dotted]
+
+        if definition is None:
+            raise Exception("Cannot find ref for {ref}")
+
+        return definition
+
+
+class Path:
+    def __init__(self, path, value):
+        super().__init__()
+        self.path = path
+        self.operations = {}
+        self.verb = {}
+        self.value = value
+
+    def summary(self, verb):
+        return self.value[verb]["summary"]
+
+    def is_tech_preview(self):
+        for verb in self.value.keys():
+            if "Technology Preview" in self.summary(verb):
+                return True
+        return False
+
+
+class SwaggerFile:
+    def __init__(self, raw_content):
+        super().__init__()
+        self.resources = {}
+        json_content = json.loads(raw_content)
+        self.definitions = Definitions(json_content["definitions"])
+        self.paths = self.load_paths(json_content["paths"])
+
+    @staticmethod
+    def load_paths(paths):
+        result = {}
+
+        for path in [Path(p, v) for p, v in paths.items()]:
+            if path.is_tech_preview():
+                continue
+            result[path.path] = path
+            for verb, desc in path.value.items():
+                operationId = desc["operationId"]
+                if desc.get("deprecated"):
+                    continue
+                try:
+                    parameters = desc["parameters"]
+                except KeyError:
+                    print(f"No parameters for {operationId} {path.path}")
+                if path.path.startswith("/rest/vcenter/vm/{vm}/tools"):
+                    if operationId == "upgrade":
+                        print(f"Skipping {path.path} upgrade (broken)")
+                        continue
+                if path.path == "/api/appliance/infraprofile/configs":
+                    if operationId == "validate$task":
+                        print(f"Skipping {path.path} upgrade (broken)")
+                        continue
+                path.operations[operationId] = (
+                    verb,
+                    path.path,
+                    parameters,
+                    desc["responses"],
+                )
+        return result
+
+    @staticmethod
+    def init_resources(paths):
+        resources = {}
+        for path in paths:
+            if "vmw-task=true" in path.path:
+                continue
+
+            name = path_to_name(path.path)
+            if name == "esx_settings_clusters_software_drafts":
+                continue
+            if name not in resources:
+                resources[name] = Resource(name)
+
+            for operationId, v in path.operations.items():
+                verb = v[0]
+                resources[name].summary[operationId] = path.summary(verb)
+                if operationId in resources[name].operations:
+                    print(
+                        f"Cannot create operationId ({operationId}) with path "
+                        f"({verb}) {path.path}. already defined: "
+                        f"{resources[name].operations[operationId]}"
+                    )
+                    continue
+                operationId = operationId.replace(
+                    "$task", ""
+                )  # NOTE: Not sure if this is the right thing to do
+                resources[name].operations[operationId] = v
+        return resources
+
+
+# module_generation procs
+
+
+def generate_amazon_cloud(args):
     module_list = []
 
     for type_name in RESOURCES:
@@ -604,9 +1090,9 @@ def main():
         schema_file = args.schema_dir / f"{type_name}.json"
         schema = json.loads(schema_file.read_text())
 
-        module = AnsibleModule(schema=schema)
+        module = AnsibleModuleBaseAmazon(schema=schema)
 
-        if module.is_trusted("amazon_cloud_code_generator"):
+        if module.is_trusted():
             module.renderer(target_dir=args.target_dir, next_version=args.next_version)
             module_list.append(module.name)
 
@@ -723,13 +1209,112 @@ def main():
     runtime_file = meta_dir / "runtime.yml"
     with open(runtime_file, "w") as file:
         yaml.safe_dump(yaml_dict, file, sort_keys=False)
+    return
 
-    info = VersionInfo("amazon_cloud_code_generator")
+
+def generate_vmware_rest(args):
+    module_list = []
+    for json_file in ["vcenter.json", "content.json", "appliance.json"]:
+        print("Generating modules from {}".format(json_file))
+        raw_content = pkg_resources.resource_string(
+            "gouttelette", f"api_specifications/vmware_rest/7.0.2/{json_file}"
+        )
+        swagger_file = SwaggerFile(raw_content)
+        resources = swagger_file.init_resources(swagger_file.paths.values())
+
+        for resource in resources.values():
+            if resource.name == "appliance_logging_forwarding":
+                continue
+            if resource.name.startswith("vcenter_trustedinfrastructure"):
+                continue
+            if "list" in resource.operations:
+                module = AnsibleInfoListOnlyModule(
+                    resource, definitions=swagger_file.definitions
+                )
+                if (
+                    module.is_trusted()
+                    and len(module.default_operationIds) > 0
+                ):
+                    module.renderer(
+                        target_dir=args.target_dir, next_version=args.next_version
+                    )
+                    module_list.append(module.name)
+            elif "get" in resource.operations:
+                module = AnsibleInfoNoListModule(
+                    resource, definitions=swagger_file.definitions
+                )
+                if (
+                    module.is_trusted()
+                    and len(module.default_operationIds) > 0
+                ):
+                    module.renderer(
+                        target_dir=args.target_dir, next_version=args.next_version
+                    )
+                    module_list.append(module.name)
+
+            module = AnsibleModuleBaseVmware(
+                resource, definitions=swagger_file.definitions
+            )
+
+            if (
+                module.is_trusted()
+                and len(module.default_operationIds) > 0
+            ):
+                module.renderer(
+                    target_dir=args.target_dir, next_version=args.next_version
+                )
+                module_list.append(module.name)
+    module_utils_dir = args.target_dir / "plugins" / "module_utils"
+    module_utils_dir.mkdir(exist_ok=True)
+    vmware_rest_dest = module_utils_dir / "vmware_rest.py"
+    vmware_rest_dest.write_bytes(
+        pkg_resources.resource_string(
+            "vmware_rest_code_generator", "module_utils/vmware_rest.py"
+        )
+    )
+    return
+
+
+def main():
+    generator = get_generator()
+    if not generator:
+        raise Exception("gouttelette.yaml is missing generator value")
+
+    generator_coll = re.sub("(.*)_code_generator", r"\1", generator["name"])
+    parser = argparse.ArgumentParser(
+        description=f"Build the {generator['name']} modules."
+    )
+
+    parser.add_argument(
+        "--target-dir",
+        dest="target_dir",
+        type=pathlib.Path,
+        default=pathlib.Path(generator["default_path"]),
+        help=f"location of the target repository (default: {generator['default_path']})",
+    )
+    parser.add_argument(
+        "--next-version",
+        type=str,
+        default="TODO",
+        help="the next major version",
+    )
+    if generator.get("name") == "amazon_cloud_code_generator":
+        parser.add_argument(
+            "--schema-dir",
+            type=pathlib.Path,
+            default=pathlib.Path("gouttelette/api_specifications/amazon_cloud/"),
+            help="location where to store the collected schemas (default: ./gouttelette/api_specifications/amazon_cloud)",
+        )
+    args = parser.parse_args()
+    func = "generate_" + generator_coll + "(args)"
+    eval(func)
+
+    info = VersionInfo(generator["name"])
     dev_md = args.target_dir / "dev.md"
     dev_md.write_text(
         (
             "The modules are autogenerated by:\n"
-            "https://github.com/ansible-collections/amazon_cloud_code_generator\n"
+            "https://github.com/ansible-collections/gouttelette\n"
             ""
             f"version: {info.version_string()}\n"
         )
@@ -740,15 +1325,13 @@ def main():
             "bump auto-generated modules\n"
             "\n"
             "The modules are autogenerated by:\n"
-            "https://github.com/ansible-collections/amazon_cloud_code_generator\n"
+            "https://github.com/ansible-collections/gouttelette\n"
             ""
             f"version: {info.version_string()}\n"
         )
     )
 
-    collection_dir = pkg_resources.resource_filename(
-        "amazon_cloud_code_generator", "data"
-    )
+    collection_dir = pkg_resources.resource_filename(generator["name"], "data")
     print(f"Copying collection from {collection_dir}")
     shutil.copytree(collection_dir, args.target_dir, dirs_exist_ok=True)
 
