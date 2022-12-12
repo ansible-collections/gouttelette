@@ -539,6 +539,8 @@ class AnsibleModuleBaseAmazon(UtilsBase):
         self.name = self.generate_module_name()
 
     def generate_module_name(self):
+        import q
+        q(self.schema.get("typeName"))
         splitted = self.schema.get("typeName").split("::")
         prefix = splitted[1].lower()
         list_to_str = "".join(map(str, splitted[2:]))
@@ -1085,8 +1087,9 @@ def generate_amazon_cloud(args):
     module_list = []
 
     for type_name in RESOURCES:
-        print(f"Generating modules {type_name}")
-        schema_file = args.schema_dir / f"{type_name}.json"
+        file_name = re.sub('::', '_', type_name)
+        print(f"Generating modules {file_name}")
+        schema_file = args.schema_dir / f"{file_name}.json"
         schema = json.loads(schema_file.read_text())
 
         module = AnsibleModuleBaseAmazon(schema=schema)
