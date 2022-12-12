@@ -269,7 +269,7 @@ class Documentation:
 
 
 def generate_documentation(
-    module: object, added_ins: Dict, next_version: str
+    module: object, added_ins: Dict, next_version: str, target_dir: str
 ) -> Iterable:
     """Format and generate the AnsibleModule documentation"""
 
@@ -371,7 +371,7 @@ def generate_documentation(
             "type": "str",
         }
 
-    module_from_config = get_module_from_config(module_name)
+    module_from_config = get_module_from_config(module_name, target_dir)
     if module_from_config and "documentation" in module_from_config:
         for k, v in module_from_config["documentation"].items():
             documentation[k] = v

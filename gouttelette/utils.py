@@ -4,7 +4,8 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, TypedDict, Union
 import jinja2
-import pkg_resources
+import baron
+import redbaron
 import yaml
 import re
 import copy
@@ -87,12 +88,11 @@ def indent(text_block: str, indent: int = 0) -> str:
     return result
 
 
-def get_module_from_config(module: str, generator: str) -> dict[str, Any]:
+def get_module_from_config(module: str, target_dir: Path) -> dict[str, Any]:
 
-    config_path = re.sub("(.*)_code_generator", r"\1", get_generator()["name"])
-    raw_content = pkg_resources.resource_string(
-        "gouttelette", "config/" + config_path + "/modules.yaml"
-    )
+    module_file = target_dir / "modules.yaml"
+    raw_content = module_file.read_text()
+
     for i in yaml.safe_load(raw_content):
         if module in i:
             return i[module] or {}
@@ -266,9 +266,9 @@ def camel_to_snake(data: Dict):
 class UtilsBase:
     name: str
 
-    def is_trusted(self, generator: str) -> bool:
+    def is_trusted(self, target_dir: Path) -> bool:
         try:
-            get_module_from_config(self.name, generator)
+            get_module_from_config(self.name, target_dir)
             return True
         except KeyError:
             print(f"- do not build: {self.name}")

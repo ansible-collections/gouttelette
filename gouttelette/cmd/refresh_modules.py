@@ -186,7 +186,7 @@ class Description:
             ).rstrip()
 
 
-def gen_documentation(name, description, parameters, added_ins, next_version):
+def gen_documentation(name, description, parameters, added_ins, next_version, target_dir):
 
     short_description = description.split(". ")[0]
     documentation = {
@@ -310,7 +310,7 @@ def gen_documentation(name, description, parameters, added_ins, next_version):
         documentation["options"][normalized_name] = option
         parameter["added_in"] = next_version
 
-    module_from_config = get_module_from_config(name)
+    module_from_config = get_module_from_config(name, target_dir)
     if module_from_config and "documentation" in module_from_config:
         for k, v in module_from_config["documentation"].items():
             documentation[k] = v
@@ -550,13 +550,12 @@ class AnsibleModuleBaseAmazon(UtilsBase):
             self,
             added_ins,
             next_version,
+            target_dir,
         )
 
         arguments = generate_argument_spec(documentation["options"])
         documentation_to_string = format_documentation(documentation)
-        import q
 
-        q(self.template_file)
         content = jinja2_renderer(
             self.template_file,
             arguments=indent(arguments, 4),
@@ -929,6 +928,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
                 self.parameters(),
                 added_ins,
                 next_version,
+                target_dir,
             )
         )
         required_if = gen_required_if(self.parameters())
@@ -1091,7 +1091,7 @@ def generate_amazon_cloud(args):
 
         module = AnsibleModuleBaseAmazon(schema=schema)
 
-        if module.is_trusted():
+        if module.is_trusted(args.target_dir):
             module.renderer(target_dir=args.target_dir, next_version=args.next_version)
             module_list.append(module.name)
 
@@ -1220,9 +1220,8 @@ def generate_vmware_rest(args):
     module_list = []
     for json_file in ["vcenter.json", "content.json", "appliance.json"]:
         print("Generating modules from {}".format(json_file))
-        raw_content = pkg_resources.resource_string(
-            "gouttelette", f"api_specifications/vmware_rest/7.0.2/{json_file}"
-        )
+        api_spec_file = args.target_dir / "api_specifications" / "7.0.2" / json_file
+        raw_content = api_spec_file.read_text()
         swagger_file = SwaggerFile(raw_content)
         resources = swagger_file.init_resources(swagger_file.paths.values())
 
@@ -1235,7 +1234,7 @@ def generate_vmware_rest(args):
                 module = AnsibleInfoListOnlyModule(
                     resource, definitions=swagger_file.definitions
                 )
-                if module.is_trusted() and len(module.default_operationIds) > 0:
+                if module.is_trusted(args.target_dir) and len(module.default_operationIds) > 0:
                     module.renderer(
                         target_dir=args.target_dir, next_version=args.next_version
                     )
@@ -1244,7 +1243,7 @@ def generate_vmware_rest(args):
                 module = AnsibleInfoNoListModule(
                     resource, definitions=swagger_file.definitions
                 )
-                if module.is_trusted() and len(module.default_operationIds) > 0:
+                if module.is_trusted(args.target_dir) and len(module.default_operationIds) > 0:
                     module.renderer(
                         target_dir=args.target_dir, next_version=args.next_version
                     )
@@ -1254,7 +1253,7 @@ def generate_vmware_rest(args):
                 resource, definitions=swagger_file.definitions
             )
 
-            if module.is_trusted() and len(module.default_operationIds) > 0:
+            if module.is_trusted(args.target_dir) and len(module.default_operationIds) > 0:
                 module.renderer(
                     target_dir=args.target_dir, next_version=args.next_version
                 )
@@ -1295,7 +1294,7 @@ def main():
         parser.add_argument(
             "--schema-dir",
             type=pathlib.Path,
-            default=pathlib.Path("gouttelette/api_specifications/amazon_cloud/"),
+            default=pathlib.Path("gouttelette/api_specifications/"),
             help="location where to store the collected schemas (default: ./gouttelette/api_specifications/amazon_cloud)",
         )
     args = parser.parse_args()
