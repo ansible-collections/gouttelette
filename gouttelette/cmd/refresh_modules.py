@@ -27,20 +27,20 @@ from gouttelette.utils import (
     ignore_description,
 )
 
-from typing import Dict, Iterable, List, DefaultDict, Union
+from typing import Dict, Iterable, List, DefaultDict, Union, Optional, TypeVar, Type
 
 from .resources import RESOURCES
 from .generator import generate_documentation
 
 
 # vmware specific
-def normalize_parameter_name(name):
+def normalize_parameter_name(name: str):
     # the in-query filter.* parameters are not valid Python variable names.
     # We replace the . with a _ to avoid problem,
     return name.replace("filter.", "filter_")  # < 7.0.2
 
 
-def ansible_state(operationId, default_operationIds=None):
+def ansible_state(operationId: str, default_operationIds: Optional[str] = None) -> str:
     mapping = {
         "update": "present",
         "delete": "absent",
@@ -60,9 +60,12 @@ def ansible_state(operationId, default_operationIds=None):
         return operationId
 
 
+class_description = TypeVar("class_description", bound="Description")
+
+
 class Description:
     @classmethod
-    def normalize(cls, string_list):
+    def normalize(cls: Type[class_description], string_list: List) -> List:
         if not isinstance(string_list, list):
             raise TypeError
 
@@ -79,7 +82,7 @@ class Description:
         return with_no_line_break
 
     @classmethod
-    def clean_up(cls, my_string):
+    def clean_up(cls: Type[class_description], my_string: str) -> str:
         def rewrite_name(matchobj):
             name = matchobj.group(1)
             snake_name = cls.to_snake(name)
@@ -88,7 +91,7 @@ class Description:
             output = f"C({snake_name})"
             return output
 
-        def rewrite_link(matchobj):
+        def rewrite_link(matchobj: str) -> str:
             name = matchobj.group(1)
             if "#" in name and name.split("#")[0]:
                 output = name.split("#")[1]
@@ -117,18 +120,18 @@ class Description:
         return my_string
 
     @classmethod
-    def to_snake(cls, camel_case):
+    def to_snake(cls: Type[class_description], camel_case: str) -> str:
         camel_case = camel_case.replace("DNS", "dns")
         return re.sub(r"(?<!^)(?=[A-Z])", "_", camel_case).lower()
 
     @classmethod
-    def ref_to_parameter(cls, ref):
+    def ref_to_parameter(cls: Type[class_description], ref: str) -> str:
         splitted = ref.split(".")
         my_parameter = splitted[-1].replace("-", "_")
         return cls.to_snake(my_parameter)
 
     @classmethod
-    def write_I(cls, my_string):
+    def write_I(cls: Type[class_description], my_string: str) -> str:
         refs = {
             cls.ref_to_parameter(i): i
             for i in re.findall(r"[A-Z][\w+]+\.[A-Z][\w+\.-]+", my_string)
@@ -139,7 +142,7 @@ class Description:
         return my_string
 
     @classmethod
-    def write_M(cls, my_string):
+    def write_M(cls: Type[class_description], my_string: str) -> str:
         my_string = re.sub(r"When operations return.*\.($|\s)", "", my_string)
         m = re.search(r"resource type:\s([a-zA-Z][\w\.]+[a-z])", my_string)
         mapping = {
@@ -186,7 +189,14 @@ class Description:
             ).rstrip()
 
 
-def gen_documentation(name, description, parameters, added_ins, next_version, target_dir):
+def gen_documentation(
+    name: str,
+    description: str,
+    parameters: List,
+    added_ins: Dict,
+    next_version: str,
+    target_dir: str,
+) -> Dict:
 
     short_description = description.split(". ")[0]
     documentation = {
@@ -317,7 +327,7 @@ def gen_documentation(name, description, parameters, added_ins, next_version, ta
     return documentation
 
 
-def path_to_name(path):
+def path_to_name(path: str) -> str:
     _path = path.lstrip("/").split("?")[0]
     elements = []
     keys = []
@@ -360,7 +370,7 @@ def path_to_name(path):
     return module_name.replace("-", "")
 
 
-def gen_arguments_py(parameters, list_index=None):
+def gen_arguments_py(parameters: List, list_index=None) -> str:
     result = ""
     for parameter in parameters:
         name = normalize_parameter_name(parameter["name"])
@@ -399,7 +409,7 @@ def gen_arguments_py(parameters, list_index=None):
     return result
 
 
-def flatten_ref(tree, definitions):
+def flatten_ref(tree: any, definitions: Iterable) -> any:
     if isinstance(tree, str):
         if tree.startswith("#/definitions/"):
             raise Exception("TODO")
@@ -429,7 +439,7 @@ def flatten_ref(tree, definitions):
 
 
 class Resource:
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
         self.operations = {}
         self.summary = {}
@@ -538,9 +548,7 @@ class AnsibleModuleBaseAmazon(UtilsBase):
         self.schema = schema
         self.name = self.generate_module_name()
 
-    def generate_module_name(self):
-        import q
-        q(self.schema.get("typeName"))
+    def generate_module_name(self) -> str:
         splitted = self.schema.get("typeName").split("::")
         prefix = splitted[1].lower()
         list_to_str = "".join(map(str, splitted[2:]))
@@ -581,7 +589,7 @@ class AnsibleModuleBaseAmazon(UtilsBase):
 class AnsibleModuleBaseVmware(UtilsBase):
     template_file = "default_module.j2"
 
-    def __init__(self, resource, definitions):
+    def __init__(self, resource: str, definitions: any):
         self.resource = resource
         self.definitions = definitions
         self.name = resource.name
@@ -589,7 +597,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
             ["get", "list"]
         )
 
-    def description(self):
+    def description(self) -> str:
         prefered_operationId = ["get", "list", "create", "get", "set"]
         for operationId in prefered_operationId:
             if operationId not in self.default_operationIds:
@@ -604,10 +612,10 @@ class AnsibleModuleBaseVmware(UtilsBase):
         print(f"generic description: {self.name}")
         return f"Handle resource of type {self.name}"
 
-    def get_path(self):
+    def get_path(self) -> str:
         return list(self.resource.operations.values())[0][1]
 
-    def list_index(self):
+    def list_index(self) -> any:
         for i in ["get", "update", "delete"]:
             if i not in self.resource.operations:
                 continue
@@ -620,7 +628,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
         if m:
             return m.group(1)
 
-    def payload(self):
+    def payload(self) -> Dict:
         """ "Return a structure that describe the format of the data to send back."""
         payload = {}
         # for operationId in self.resource.operations:
@@ -638,7 +646,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
                 payload[operationId][_in][parameter["name"]] = payload_info
         return payload
 
-    def answer(self):
+    def answer(self) -> any:
         # This is arguably not super elegant. The list outputs just include a summary of the resources,
         # with this little transformation, we get access to the full item
         output_format = None
@@ -668,8 +676,8 @@ class AnsibleModuleBaseVmware(UtilsBase):
         if "properties" in raw_answer:
             return raw_answer["properties"].keys()
 
-    def parameters(self):
-        def sort_operationsid(input):
+    def parameters(self) -> Iterable:
+        def sort_operationsid(input: Iterable) -> Iterable:
             output = sorted(input)
             if "create" in output:
                 output = ["create"] + output
@@ -798,7 +806,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
 
         return sorted(results.values(), key=lambda item: item["name"])
 
-    def gen_required_if(self, parameters):
+    def gen_required_if(self, parameters: List) -> List:
         by_states = DefaultDict(list)
         for parameter in parameters:
             for operation in parameter.get("_required_with_operations", []):
@@ -811,10 +819,12 @@ class AnsibleModuleBaseVmware(UtilsBase):
         return entries
 
     @staticmethod
-    def _property_to_parameter(prop_struct, definitions, operationId):
+    def _property_to_parameter(
+        prop_struct: any, definitions: Iterable, operationId: any
+    ) -> Iterable:
         properties = flatten_ref(prop_struct, definitions)
 
-        def get_next(properties):
+        def get_next(properties: List) -> Iterable:
             required_keys = []
             for i, v in enumerate(properties):
                 required = v.get("required")
@@ -912,14 +922,14 @@ class AnsibleModuleBaseVmware(UtilsBase):
             parameters, key=lambda item: (item["name"], item.get("description"))
         )
 
-    def list_path(self):
+    def list_path(self) -> any:
         list_path = None
         if "list" in self.resource.operations:
             list_path = self.resource.operations["list"][1]
 
         return list_path
 
-    def renderer(self, target_dir, next_version):
+    def renderer(self, target_dir: str, next_version: str):
 
         added_ins = {}  # get_module_added_ins(self.name, git_dir=target_dir / ".git")
         arguments = gen_arguments_py(self.parameters(), self.list_index())
@@ -952,12 +962,12 @@ class AnsibleModuleBaseVmware(UtilsBase):
 
 
 class AnsibleInfoModule(AnsibleModuleBaseVmware):
-    def __init__(self, resource, definitions):
+    def __init__(self, resource: any, definitions: any):
         super().__init__(resource, definitions)
         self.name = resource.name + "_info"
         self.default_operationIds = ["get", "list"]
 
-    def parameters(self):
+    def parameters(self) -> List:
         return [i for i in list(super().parameters()) if i["name"] != "state"]
 
 
@@ -970,11 +980,11 @@ class AnsibleInfoListOnlyModule(AnsibleInfoModule):
 
 
 class Definitions:
-    def __init__(self, data):
+    def __init__(self, data: any):
         super().__init__()
         self.definitions = data
 
-    def get(self, ref):
+    def get(self, ref: any) -> any:
         if isinstance(ref, dict):
             # TODO: standardize the input to avoid this step
             dotted = ref["$ref"].split("/")[2]
@@ -993,17 +1003,17 @@ class Definitions:
 
 
 class Path:
-    def __init__(self, path, value):
+    def __init__(self, path: str, value: any):
         super().__init__()
         self.path = path
         self.operations = {}
         self.verb = {}
         self.value = value
 
-    def summary(self, verb):
+    def summary(self, verb: str) -> str:
         return self.value[verb]["summary"]
 
-    def is_tech_preview(self):
+    def is_tech_preview(self) -> bool:
         for verb in self.value.keys():
             if "Technology Preview" in self.summary(verb):
                 return True
@@ -1011,7 +1021,7 @@ class Path:
 
 
 class SwaggerFile:
-    def __init__(self, raw_content):
+    def __init__(self, raw_content: any):
         super().__init__()
         self.resources = {}
         json_content = json.loads(raw_content)
@@ -1019,7 +1029,7 @@ class SwaggerFile:
         self.paths = self.load_paths(json_content["paths"])
 
     @staticmethod
-    def load_paths(paths):
+    def load_paths(paths: str) -> Dict:
         result = {}
 
         for path in [Path(p, v) for p, v in paths.items()]:
@@ -1051,7 +1061,7 @@ class SwaggerFile:
         return result
 
     @staticmethod
-    def init_resources(paths):
+    def init_resources(paths: str) -> Dict:
         resources = {}
         for path in paths:
             if "vmw-task=true" in path.path:
@@ -1083,11 +1093,11 @@ class SwaggerFile:
 # module_generation procs
 
 
-def generate_amazon_cloud(args):
+def generate_amazon_cloud(args: Iterable):
     module_list = []
 
     for type_name in RESOURCES:
-        file_name = re.sub('::', '_', type_name)
+        file_name = re.sub("::", "_", type_name)
         print(f"Generating modules {file_name}")
         schema_file = args.schema_dir / f"{file_name}.json"
         schema = json.loads(schema_file.read_text())
@@ -1219,7 +1229,7 @@ def generate_amazon_cloud(args):
     return
 
 
-def generate_vmware_rest(args):
+def generate_vmware_rest(args: Iterable):
     module_list = []
     for json_file in ["vcenter.json", "content.json", "appliance.json"]:
         print("Generating modules from {}".format(json_file))
@@ -1237,7 +1247,10 @@ def generate_vmware_rest(args):
                 module = AnsibleInfoListOnlyModule(
                     resource, definitions=swagger_file.definitions
                 )
-                if module.is_trusted(args.target_dir) and len(module.default_operationIds) > 0:
+                if (
+                    module.is_trusted(args.target_dir)
+                    and len(module.default_operationIds) > 0
+                ):
                     module.renderer(
                         target_dir=args.target_dir, next_version=args.next_version
                     )
@@ -1246,7 +1259,10 @@ def generate_vmware_rest(args):
                 module = AnsibleInfoNoListModule(
                     resource, definitions=swagger_file.definitions
                 )
-                if module.is_trusted(args.target_dir) and len(module.default_operationIds) > 0:
+                if (
+                    module.is_trusted(args.target_dir)
+                    and len(module.default_operationIds) > 0
+                ):
                     module.renderer(
                         target_dir=args.target_dir, next_version=args.next_version
                     )
@@ -1256,7 +1272,10 @@ def generate_vmware_rest(args):
                 resource, definitions=swagger_file.definitions
             )
 
-            if module.is_trusted(args.target_dir) and len(module.default_operationIds) > 0:
+            if (
+                module.is_trusted(args.target_dir)
+                and len(module.default_operationIds) > 0
+            ):
                 module.renderer(
                     target_dir=args.target_dir, next_version=args.next_version
                 )
