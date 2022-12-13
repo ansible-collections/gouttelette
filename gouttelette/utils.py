@@ -172,7 +172,9 @@ def get_module_added_ins(module_name: str, git_dir: str) -> Dict[str, Any]:
     return added_ins
 
 
-def scrub_keys(a_dict: Dict[str, Any], list_of_keys_to_remove: List[str]) -> Dict[str, Any]:
+def scrub_keys(
+    a_dict: Dict[str, Any], list_of_keys_to_remove: List[str]
+) -> Dict[str, Any]:
     """Filter a_dict by removing unwanted keys: values listed in list_of_keys_to_remove"""
     if not isinstance(a_dict, dict):
         return a_dict
@@ -203,7 +205,9 @@ def ignore_description(a_dict: Dict[str, Any]) -> Dict[str, Any]:
         ignore_description(v)
 
 
-def ensure_description(element: Dict[str, Any], *keys: List[Any], default: str = "Not Provived.") -> Dict[str, Any]:
+def ensure_description(
+    element: Dict[str, Any], *keys: List[Any], default: str = "Not Provived."
+) -> Dict[str, Any]:
     """
     Check if *keys (nested) exists in `element` (dict) and ensure it has the default value.
     """

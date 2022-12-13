@@ -21,7 +21,7 @@
         - Creates and manages logical containers where backups are stored.
 - backup_framework:
     documentation:
-      short_description: Create and manage frameworks with one or more controls 
+      short_description: Create and manage frameworks with one or more controls
       description:
         - Creates and manages frameworks with one or more controls.
 - backup_report_plan:
