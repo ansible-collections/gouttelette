@@ -25,7 +25,7 @@ def jinja2_renderer(template_file: str, **kwargs: Dict[str, Any]) -> str:
     return template.render(kwargs)
 
 
-def get_generator() -> Dict:
+def get_generator() -> Dict[str, Any]:
     generator = {}
     with open("gouttelette.yml", "r") as file:
         try:
@@ -113,7 +113,7 @@ def python_type(value: str) -> str:
     return TYPE_MAPPING.get(value, value)
 
 
-def run_git(git_dir: str, *args):
+def run_git(git_dir: str, *args: List[Any]) -> List[Any]:
     cmd = [
         "git",
         "--git-dir",
@@ -126,18 +126,18 @@ def run_git(git_dir: str, *args):
 
 
 @lru_cache(maxsize=None)
-def file_by_tag(git_dir: str) -> Dict:
+def file_by_tag(git_dir: str) -> Dict[str, Any]:
     tags = run_git(git_dir, "tag")
 
-    files_by_tag: Dict = {}
+    files_by_tag: Dict[str, Any] = {}
     for tag in tags:
         files_by_tag[tag] = run_git(git_dir, "ls-tree", "-r", "--name-only", tag)
 
     return files_by_tag
 
 
-def get_module_added_ins(module_name: str, git_dir: str) -> Dict:
-    added_ins = {"module": None, "options": {}}
+def get_module_added_ins(module_name: str, git_dir: str) -> Dict[str, Any]:
+    added_ins: Dict[str, Any] = {"module": None, "options": {}}
     module = f"plugins/modules/{module_name}.py"
 
     for tag, files in file_by_tag(git_dir).items():
@@ -172,7 +172,7 @@ def get_module_added_ins(module_name: str, git_dir: str) -> Dict:
     return added_ins
 
 
-def scrub_keys(a_dict: Dict, list_of_keys_to_remove: List) -> Dict:
+def scrub_keys(a_dict: Dict[str, Any], list_of_keys_to_remove: List[str]) -> Dict[str, Any]:
     """Filter a_dict by removing unwanted keys: values listed in list_of_keys_to_remove"""
     if not isinstance(a_dict, dict):
         return a_dict
@@ -185,7 +185,7 @@ def scrub_keys(a_dict: Dict, list_of_keys_to_remove: List) -> Dict:
     }
 
 
-def ignore_description(a_dict: Dict):
+def ignore_description(a_dict: Dict[str, Any]) -> Dict[str, Any]:
     """
     Filter a_dict by removing description fields.
     Handle when 'description' is a module suboption.
@@ -203,7 +203,7 @@ def ignore_description(a_dict: Dict):
         ignore_description(v)
 
 
-def ensure_description(element: Dict, *keys, default: str = "Not Provived."):
+def ensure_description(element: Dict[str, Any], *keys: List[Any], default: str = "Not Provived.") -> Dict[str, Any]:
     """
     Check if *keys (nested) exists in `element` (dict) and ensure it has the default value.
     """
@@ -223,7 +223,7 @@ def ensure_description(element: Dict, *keys, default: str = "Not Provived."):
 
 
 def _camel_to_snake(name: str, reversible: bool = False) -> str:
-    def prepend_underscore_and_lower(m):
+    def prepend_underscore_and_lower(m: str) -> str:
         return "_" + m.group(0).lower()
 
     if reversible:
@@ -247,13 +247,13 @@ def _camel_to_snake(name: str, reversible: bool = False) -> str:
     return re.sub(all_cap_pattern, r"\1_\2", s2).lower()
 
 
-def camel_to_snake(data: Dict):
+def camel_to_snake(data: Any) -> Any:
     if isinstance(data, str):
         return _camel_to_snake(data)
     elif isinstance(data, list):
         return [_camel_to_snake(r) for r in data]
     elif isinstance(data, dict):
-        b_dict: Dict = {}
+        b_dict: Dict[str, Any] = {}
         for k in data.keys():
             if isinstance(data[k], dict):
                 b_dict[_camel_to_snake(k)] = camel_to_snake(data[k])
