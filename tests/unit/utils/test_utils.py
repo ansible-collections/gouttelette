@@ -50,14 +50,3 @@ def test_python_type():
     assert utils.python_type("boolean") == "bool"
     assert utils.python_type(["object", "string"]) == "dict"
     assert utils.python_type(["string", "object"]) == "str"
-
-
-@patch("pkg_resources.resource_string")
-def test_UtilsBase_is_trusted(m_resource_string):
-    m_resource_string.return_value = "---\n- foo:\n- bar:\n  some: key\n"
-    module = utils.UtilsBase("no-trusted-pantoute")
-    assert module.is_trusted("a-generator") is False
-    module = utils.UtilsBase("foo")
-    assert module.is_trusted("a-generator") is True
-    module = utils.UtilsBase("bar")
-    assert module.is_trusted("a-generator") is True

@@ -12,4 +12,7 @@ rules:
   brackets:
     max-spaces-inside: 1
     level: error
+  document-start: disable
+  indentation: disable
   line-length: disable
+  truthy: disable
