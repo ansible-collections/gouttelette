@@ -67,13 +67,13 @@ def indent(text_block: str, indent: int = 0) -> str:
     return result
 
 
-def get_module_from_config(module: str, generator: str) -> Any:
+def get_module_from_config(module: str, generator: str) -> dict[str, Any]:
 
     raw_content = pkg_resources.resource_string(generator, "config/modules.yaml")
     for i in yaml.safe_load(raw_content):
         if module in i:
-            return i[module]
-    return {}
+            return i[module] or {}
+    raise KeyError
 
 
 def python_type(value: str) -> str:
@@ -95,10 +95,12 @@ class UtilsBase:
     name: str
 
     def is_trusted(self, generator: str) -> bool:
-        if get_module_from_config(self.name, generator):
+        try:
+            get_module_from_config(self.name, generator)
             return True
-        print(f"- do not build: {self.name}")
-        return False
+        except KeyError:
+            print(f"- do not build: {self.name}")
+            return False
 
     def write_module(self, target_dir: Path, content: str) -> None:
         module_dir = target_dir / "plugins" / "modules"
