@@ -88,7 +88,7 @@ def indent(text_block: str, indent: int = 0) -> str:
     return result
 
 
-def get_module_from_config(module: str, target_dir: Path) -> dict[str, Any]:
+def get_module_from_config(module: str, target_dir: Path) -> Dict[str, Any]:
 
     module_file = target_dir / "modules.yaml"
     raw_content = module_file.read_text()
