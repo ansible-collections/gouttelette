@@ -6,7 +6,7 @@
 
 import copy
 import re
-from typing import Iterable, List, Dict
+from typing import Iterable, List, Dict, Any
 from gouttelette.utils import (
     python_type,
     get_module_from_config,
@@ -18,7 +18,7 @@ from gouttelette.utils import (
 
 class Description:
     @classmethod
-    def normalize(cls, string: str, definitions: Iterable = {}) -> List[str]:
+    def normalize(cls, string: str, definitions: dict[str, Any]) -> List[str]:
         with_no_line_break: List[str] = []
         sentences = re.split(r"(?<=[^A-Z].[.?]) +(?=[A-Z])", string)
         sentences[:] = [x for x in sentences if x]
@@ -36,14 +36,14 @@ class Description:
         return with_no_line_break
 
     @classmethod
-    def clean_up(cls, definitions: Iterable, my_string: str) -> str:
+    def clean_up(cls, definitions: dict[str, Any], my_string: str) -> str:
         values = set()
         keys = set()
 
         ignored_values = set(["PUT", "S3", "EC2"])
 
-        def get_keys(a_dict):
-            keys = []
+        def get_keys(a_dict: dict) -> list[str]:
+            keys: list[str] = []
             if isinstance(a_dict, list):
                 for item in a_dict:
                     keys.extend(get_keys(item))

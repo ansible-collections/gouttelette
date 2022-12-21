@@ -113,8 +113,8 @@ def python_type(value: str) -> str:
     return TYPE_MAPPING.get(value, value)
 
 
-def run_git(git_dir: str, *args: List[Any]) -> List[Any]:
-    cmd = [
+def run_git(git_dir: str, *args: str) -> List[Any]:
+    cmd: List[str] = [
         "git",
         "--git-dir",
         git_dir,
@@ -187,14 +187,14 @@ def scrub_keys(
     }
 
 
-def ignore_description(a_dict: Dict[str, Any]) -> Dict[str, Any]:
+def ignore_description(a_dict: Dict[str, Any]) -> None:
     """
     Filter a_dict by removing description fields.
     Handle when 'description' is a module suboption.
     """
     a_dict_copy = copy.copy(a_dict)
     if not isinstance(a_dict, dict):
-        return a_dict
+        return
 
     for k, v in a_dict_copy.items():
         if k == "description":
@@ -227,7 +227,7 @@ def ensure_description(
 
 
 def _camel_to_snake(name: str, reversible: bool = False) -> str:
-    def prepend_underscore_and_lower(m: str) -> str:
+    def prepend_underscore_and_lower(m: re.Match[str]) -> str:
         return "_" + m.group(0).lower()
 
     if reversible:
