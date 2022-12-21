@@ -22,7 +22,6 @@ from gouttelette.utils import (
     get_module_added_ins,
     get_module_from_config,
     python_type,
-    get_generator,
     camel_to_snake,
     ignore_description,
 )
@@ -1290,11 +1289,6 @@ def generate_vmware_rest(args: Iterable):
 
 
 def main():
-    generator = get_generator()
-    if not generator:
-        raise Exception("gouttelette.yaml is missing generator value")
-
-    generator_coll = re.sub("(.*)_code_generator", r"\1", generator["name"])
     parser = argparse.ArgumentParser(
         description=f"Build the {generator['name']} modules."
     )
@@ -1320,8 +1314,6 @@ def main():
             help="location where to store the collected schemas (default: ./gouttelette/api_specifications/amazon_cloud)",
         )
     args = parser.parse_args()
-    func = "generate_" + generator_coll + "(args)"
-    eval(func)
 
     info = VersionInfo(generator["name"])
     dev_md = args.target_dir / "dev.md"
