@@ -554,13 +554,13 @@ class AnsibleModuleBaseAmazon(UtilsBase):
         list_to_str = "".join(map(str, splitted[2:]))
         return prefix + "_" + camel_to_snake(list_to_str)
 
-    def renderer(self, target_dir: str, next_version: str):
+    def renderer(self, target_dir: str, module_dir: str, next_version: str):
         added_ins = get_module_added_ins(self.name, git_dir=target_dir / ".git")
         documentation = generate_documentation(
             self,
             added_ins,
             next_version,
-            target_dir,
+            module_dir,
         )
 
         arguments = generate_argument_spec(documentation["options"])
@@ -929,7 +929,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
 
         return list_path
 
-    def renderer(self, target_dir: str, next_version: str):
+    def renderer(self, target_dir: str, module_dir: str, next_version: str):
 
         added_ins = {}  # get_module_added_ins(self.name, git_dir=target_dir / ".git")
         arguments = gen_arguments_py(self.parameters(), self.list_index())
@@ -940,7 +940,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
                 self.parameters(),
                 added_ins,
                 next_version,
-                target_dir,
+                module_dir,
             )
         )
         required_if = gen_required_if(self.parameters())
@@ -1104,8 +1104,12 @@ def generate_amazon_cloud(args: Iterable):
 
         module = AnsibleModuleBaseAmazon(schema=schema)
 
-        if module.is_trusted(args.target_dir):
-            module.renderer(target_dir=args.target_dir, next_version=args.next_version)
+        if module.is_trusted(args.modules):
+            module.renderer(
+                target_dir=args.target_dir,
+                module_dir=args.modules,
+                next_version=args.next_version,
+            )
             module_list.append(module.name)
 
     modules = [f"plugins/modules/{module}.py" for module in module_list]
@@ -1233,8 +1237,8 @@ def generate_vmware_rest(args: Iterable):
     module_list = []
     for json_file in ["vcenter.json", "content.json", "appliance.json"]:
         print("Generating modules from {}".format(json_file))
-        api_spec_file = args.target_dir / "api_specifications" / "7.0.2" / json_file
-        raw_content = api_spec_file.read_text()
+        api_spec_file = "gouttelette/api_specifications/vmware_rest/7.0.2/" + json_file
+        raw_content = pathlib.Path(api_spec_file).read_text()
         swagger_file = SwaggerFile(raw_content)
         resources = swagger_file.init_resources(swagger_file.paths.values())
 
@@ -1248,11 +1252,13 @@ def generate_vmware_rest(args: Iterable):
                     resource, definitions=swagger_file.definitions
                 )
                 if (
-                    module.is_trusted(args.target_dir)
+                    module.is_trusted(args.modules)
                     and len(module.default_operationIds) > 0
                 ):
                     module.renderer(
-                        target_dir=args.target_dir, next_version=args.next_version
+                        target_dir=args.target_dir,
+                        module_dir=args.modules,
+                        next_version=args.next_version,
                     )
                     module_list.append(module.name)
             elif "get" in resource.operations:
@@ -1260,11 +1266,13 @@ def generate_vmware_rest(args: Iterable):
                     resource, definitions=swagger_file.definitions
                 )
                 if (
-                    module.is_trusted(args.target_dir)
+                    module.is_trusted(args.modules)
                     and len(module.default_operationIds) > 0
                 ):
                     module.renderer(
-                        target_dir=args.target_dir, next_version=args.next_version
+                        target_dir=args.target_dir,
+                        module_dir=args.modules,
+                        next_version=args.next_version,
                     )
                     module_list.append(module.name)
 
@@ -1272,12 +1280,11 @@ def generate_vmware_rest(args: Iterable):
                 resource, definitions=swagger_file.definitions
             )
 
-            if (
-                module.is_trusted(args.target_dir)
-                and len(module.default_operationIds) > 0
-            ):
+            if module.is_trusted(args.modules) and len(module.default_operationIds) > 0:
                 module.renderer(
-                    target_dir=args.target_dir, next_version=args.next_version
+                    target_dir=args.target_dir,
+                    module_dir=args.modules,
+                    next_version=args.next_version,
                 )
                 module_list.append(module.name)
     module_utils_dir = args.target_dir / "plugins" / "module_utils"
@@ -1306,6 +1313,15 @@ def main():
         default=pathlib.Path(generator["default_path"]),
         help=f"location of the target repository (default: {generator['default_path']})",
     )
+
+    parser.add_argument(
+        "--modules",
+        dest="modules",
+        type=pathlib.Path,
+        default=pathlib.Path(f"gouttelette/config/{generator_coll}"),
+        help=f"location of the modules.yaml file (default: gouttelette/config/<generator>)",
+    )
+
     parser.add_argument(
         "--next-version",
         type=str,
@@ -1316,7 +1332,7 @@ def main():
         parser.add_argument(
             "--schema-dir",
             type=pathlib.Path,
-            default=pathlib.Path("gouttelette/api_specifications/"),
+            default=pathlib.Path("gouttelette/api_specifications/amazon_cloud"),
             help="location where to store the collected schemas (default: ./gouttelette/api_specifications/amazon_cloud)",
         )
     args = parser.parse_args()
