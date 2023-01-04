@@ -50,8 +50,8 @@ def main() -> None:
     parser.add_argument(
         "--schema-dir",
         type=pathlib.Path,
-        default=pathlib.Path("amazon_cloud_code_generator/api_specifications"),
-        help="location where to store the collected schemas (default: ./amazon_cloud_code_generator/api_specifications)",
+        default=pathlib.Path("gouttelette/amazon_cloud/api_specifications"),
+        help="location where to store the collected schemas (default: ./gouttelette/amazon_cloud/api_specifications)",
     )
     args = parser.parse_args()
 
