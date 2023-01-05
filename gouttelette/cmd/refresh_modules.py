@@ -1237,7 +1237,7 @@ def generate_vmware_rest(args: Iterable):
     module_list = []
     for json_file in ["vcenter.json", "content.json", "appliance.json"]:
         print("Generating modules from {}".format(json_file))
-        api_spec_file = "gouttelette/api_specifications/vmware_rest/7.0.2/" + json_file
+        api_spec_file = args.schema_dir + "/7.0.2/" + json_file
         raw_content = pathlib.Path(api_spec_file).read_text()
         swagger_file = SwaggerFile(raw_content)
         resources = swagger_file.init_resources(swagger_file.paths.values())
@@ -1297,6 +1297,7 @@ def generate_vmware_rest(args: Iterable):
 
 
 def main():
+
     generator = get_generator()
     if not generator:
         raise Exception("gouttelette.yaml is missing generator value")
@@ -1328,13 +1329,12 @@ def main():
         default="TODO",
         help="the next major version",
     )
-    if generator.get("name") == "amazon_cloud_code_generator":
-        parser.add_argument(
-            "--schema-dir",
-            type=pathlib.Path,
-            default=pathlib.Path("gouttelette/api_specifications/amazon_cloud"),
-            help="location where to store the collected schemas (default: ./gouttelette/api_specifications/amazon_cloud)",
-        )
+    parser.add_argument(
+        "--schema-dir",
+        type=pathlib.Path,
+        default=pathlib.Path(f"gouttelette/api_specifications/{generator_coll}"),
+        help="location where to store the collected schemas (default: ./gouttelette/api_specifications/<generator>)",
+    )
     args = parser.parse_args()
     func = "generate_" + generator_coll + "(args)"
     eval(func)
