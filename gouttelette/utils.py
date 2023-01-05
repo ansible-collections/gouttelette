@@ -12,6 +12,7 @@ import copy
 import subprocess
 from pathlib import Path
 from functools import lru_cache
+import pkg_resources
 
 
 def jinja2_renderer(template_file: str, **kwargs: Dict[str, Any]) -> str:
@@ -27,7 +28,8 @@ def jinja2_renderer(template_file: str, **kwargs: Dict[str, Any]) -> str:
 
 def get_generator() -> Dict[str, Any]:
     generator = {}
-    with open("gouttelette.yml", "r") as file:
+    generator_file = pkg_resources.resource_filename("gouttelette", "gouttelette.yml")
+    with open(generator_file, "r") as file:
         try:
             generator.update({"name": yaml.safe_load(file)["generator"]})
             if "amazon_cloud_code_generator" in generator["name"]:
