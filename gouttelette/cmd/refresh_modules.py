@@ -1101,7 +1101,10 @@ def generate_amazon_cloud(args: Iterable):
         print(f"Generating modules {file_name}")
         schema_dir = pathlib.Path(args.schema_dir).parents[1]
         if schema_dir == pathlib.Path("gouttelette"):
-            schema_path = pkg_resources.resource_filename("gouttelette", str(pathlib.Path(args.schema_dir).relative_to(schema_dir)))
+            schema_path = pkg_resources.resource_filename(
+                "gouttelette",
+                str(pathlib.Path(args.schema_dir).relative_to(schema_dir)),
+            )
             schema_file = pathlib.Path(schema_path) / f"{file_name}.json"
         else:
             schema_file = args.schema_dir / f"{file_name}.json"

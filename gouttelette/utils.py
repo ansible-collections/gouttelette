@@ -22,9 +22,7 @@ def jinja2_renderer(template_file: str, **kwargs: Dict[str, Any]) -> str:
     templateLoader = jinja2.PackageLoader("gouttelette", f"templates/{template_path}")
 
     templateEnv = jinja2.Environment(loader=templateLoader)
-    template = templateEnv.get_template(
-         template_file
-    )
+    template = templateEnv.get_template(template_file)
     return template.render(kwargs)
 
 
@@ -96,7 +94,9 @@ def get_module_from_config(module: str, target_dir: Path) -> Dict[str, Any]:
 
     config_dir = target_dir.parents[1]
     if config_dir == pathlib.Path("gouttelette"):
-        config_path = pkg_resources.resource_filename("gouttelette", str(target_dir.relative_to(config_dir)))
+        config_path = pkg_resources.resource_filename(
+            "gouttelette", str(target_dir.relative_to(config_dir))
+        )
         module_file = pathlib.Path(config_path) / "modules.yaml"
     else:
         module_file = target_dir / "modules.yaml"
