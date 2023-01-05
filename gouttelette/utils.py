@@ -2,7 +2,7 @@
 
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, TypedDict, Union
+from typing import Any, Dict, List
 import jinja2
 import baron
 import redbaron
@@ -90,7 +90,7 @@ def indent(text_block: str, indent: int = 0) -> str:
     return result
 
 
-def get_module_from_config(module: str, target_dir: Path) -> dict[str, Any]:
+def get_module_from_config(module: str, target_dir: Path) -> Dict[str, Any]:
 
     module_file = target_dir / "modules.yaml"
     raw_content = module_file.read_text()
