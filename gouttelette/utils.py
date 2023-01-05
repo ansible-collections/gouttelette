@@ -13,16 +13,16 @@ import subprocess
 from pathlib import Path
 from functools import lru_cache
 import pkg_resources
+import pathlib
 
 
 def jinja2_renderer(template_file: str, **kwargs: Dict[str, Any]) -> str:
 
     template_path = re.sub("(.*)_code_generator", r"\1", get_generator()["name"])
-    templateLoader = jinja2.FileSystemLoader("gouttelette")
+    templateLoader = jinja2.PackageLoader("gouttelette", f"templates/{template_path}")
+
     templateEnv = jinja2.Environment(loader=templateLoader)
-    template = templateEnv.get_template(
-        "templates/" + template_path + "/" + template_file
-    )
+    template = templateEnv.get_template(template_file)
     return template.render(kwargs)
 
 
@@ -92,7 +92,14 @@ def indent(text_block: str, indent: int = 0) -> str:
 
 def get_module_from_config(module: str, target_dir: Path) -> Dict[str, Any]:
 
-    module_file = target_dir / "modules.yaml"
+    config_dir = target_dir.parents[1]
+    if config_dir == pathlib.Path("gouttelette"):
+        config_path = pkg_resources.resource_filename(
+            "gouttelette", str(target_dir.relative_to(config_dir))
+        )
+        module_file = pathlib.Path(config_path) / "modules.yaml"
+    else:
+        module_file = target_dir / "modules.yaml"
     raw_content = module_file.read_text()
 
     for i in yaml.safe_load(raw_content):
