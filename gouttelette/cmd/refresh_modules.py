@@ -1243,9 +1243,19 @@ def generate_amazon_cloud(args: Iterable):
 
 def generate_vmware_rest(args: Iterable):
     module_list = []
+    schema_file = args.schema_dir
+    schema_dir = pathlib.Path(args.schema_dir).parents[1]
+
+    if schema_dir == pathlib.Path("gouttelette"):
+        schema_path = pkg_resources.resource_filename(
+            "gouttelette",
+            str(pathlib.Path(args.schema_dir).relative_to(schema_dir)),
+        )
+        schema_file = pathlib.Path(schema_path + "/7.0.2/")
+
     for json_file in ["vcenter.json", "content.json", "appliance.json"]:
         print("Generating modules from {}".format(json_file))
-        api_spec_file = args.schema_dir + "/7.0.2/" + json_file
+        api_spec_file = str(schema_file) + "/" + json_file
         raw_content = pathlib.Path(api_spec_file).read_text()
         swagger_file = SwaggerFile(raw_content)
         resources = swagger_file.init_resources(swagger_file.paths.values())
