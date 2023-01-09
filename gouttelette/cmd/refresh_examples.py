@@ -8,6 +8,7 @@ from typing import Dict, List, Any, Union, Callable
 import re
 import ruamel.yaml
 import yaml
+import pkg_resources
 
 
 class MissingDependency(Exception):
@@ -244,12 +245,13 @@ def main() -> None:
     args = parser.parse_args()
     galaxy_file = args.target_dir / "galaxy.yml"
     galaxy = yaml.safe_load(galaxy_file.open())
-    gouttelette_file = args.target_dir / "gouttelette.yml"
-    gouttelette = yaml.safe_load(gouttelette_file.open())
+    gouttelette_file = pkg_resources.resource_filename("gouttelette", "gouttelette.yml")
+    gouttelette = yaml.safe_load(Path(gouttelette_file).open())
     collection_name = f"{galaxy['namespace']}.{galaxy['name']}"
     tasks = []
     test_scenarios_dirs = [
-        args.target_dir / Path(i) for i in gouttelette["examples"]["load_from"]
+        args.target_dir / Path(i)
+        for i in gouttelette["examples"][collection_name]["load_from"]
     ]
     for scenario_dir in test_scenarios_dirs:
         if not scenario_dir.is_dir():
@@ -262,8 +264,8 @@ def main() -> None:
     extracted_examples = extract(
         tasks,
         collection_name,
-        dont_look_up_vars=gouttelette["examples"]["dont_look_up_vars"],
-        task_selector=gouttelette["examples"]["task_selector"],
+        dont_look_up_vars=gouttelette["examples"][collection_name]["dont_look_up_vars"],
+        task_selector=gouttelette["examples"][collection_name]["task_selector"],
     )
     inject(args.target_dir, extracted_examples)
 
