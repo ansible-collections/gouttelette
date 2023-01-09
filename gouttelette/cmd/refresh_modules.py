@@ -1320,7 +1320,6 @@ def main():
     if not generator:
         raise Exception("gouttelette.yaml is missing generator value")
 
-    generator_coll = re.sub("(.*)_code_generator", r"\1", generator["name"])
     parser = argparse.ArgumentParser(
         description=f"Build the {generator['name']} modules."
     )
@@ -1354,8 +1353,10 @@ def main():
         help="location where to store the collected schemas (default: ./gouttelette/api_specifications/<generator>)",
     )
     args = parser.parse_args()
-    func = "generate_" + generator_coll + "(args)"
-    eval(func)
+
+    func = {"vmware_rest_code_generator": generate_vmware_rest,
+            "amazon_cloud_code_generator": generate_amazon_cloud}[generator["name"]]
+    func(args)
 
     info = VersionInfo(generator["name"])
     dev_md = args.target_dir / "dev.md"
