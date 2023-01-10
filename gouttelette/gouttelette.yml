@@ -1,5 +1,4 @@
 ---
-generator: "amazon_cloud_code_generator"
 examples:
   vmware.vmware_rest:
     load_from:

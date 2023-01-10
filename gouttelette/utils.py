@@ -16,29 +16,15 @@ import pkg_resources
 import pathlib
 
 
-def jinja2_renderer(template_file: str, **kwargs: Dict[str, Any]) -> str:
+def jinja2_renderer(
+    template_file: str, collection: str, **kwargs: Dict[str, Any]
+) -> str:
 
-    template_path = re.sub("(.*)_code_generator", r"\1", get_generator()["name"])
-    templateLoader = jinja2.PackageLoader("gouttelette", f"templates/{template_path}")
+    templateLoader = jinja2.PackageLoader("gouttelette", f"templates/{collection}")
 
     templateEnv = jinja2.Environment(loader=templateLoader)
     template = templateEnv.get_template(template_file)
     return template.render(kwargs)
-
-
-def get_generator() -> Dict[str, Any]:
-    generator = {}
-    generator_file = pkg_resources.resource_filename("gouttelette", "gouttelette.yml")
-    with open(generator_file, "r") as file:
-        try:
-            generator.update({"name": yaml.safe_load(file)["generator"]})
-            if "amazon_cloud_code_generator" in generator["name"]:
-                generator.update({"default_path": "cloud"})
-            elif "vmware_rest_code_generator" in generator["name"]:
-                generator.update({"default_path": "vmware_rest"})
-        except yaml.YAMLError as exc:
-            print(exc)
-    return generator
 
 
 def format_documentation(documentation: Any) -> str:

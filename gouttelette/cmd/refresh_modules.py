@@ -22,7 +22,6 @@ from gouttelette.utils import (
     get_module_added_ins,
     get_module_from_config,
     python_type,
-    get_generator,
     camel_to_snake,
     ignore_description,
 )
@@ -540,6 +539,26 @@ def gen_required_if(schema: Union[List, Dict]) -> List:
     return entries
 
 
+def set_defaults(args: Iterable):
+    if args.collection == "amazon_cloud":
+        if args.target_dir is None:
+            args.target_dir = pathlib.Path("cloud")
+        if args.modules is None:
+            args.modules = pathlib.Path("gouttelette/config/amazon_cloud")
+        if args.schema_dir is None:
+            args.schema_dir = pathlib.Path(
+                "gouttelette/api_specifications/amazon_cloud"
+            )
+    else:
+        if args.target_dir is None:
+            args.target_dir = pathlib.Path("vmware_rest")
+        if args.modules is None:
+            args.modules = pathlib.Path("gouttelette/config/vmware_rest")
+        if args.schema_dir is None:
+            args.schema_dir = pathlib.Path("gouttelette/api_specifications/vmware_rest")
+    return args
+
+
 # Classes
 class AnsibleModuleBaseAmazon(UtilsBase):
     template_file = "default_module.j2"
@@ -568,6 +587,7 @@ class AnsibleModuleBaseAmazon(UtilsBase):
 
         content = jinja2_renderer(
             self.template_file,
+            "amazon_cloud",
             arguments=indent(arguments, 4),
             documentation=documentation_to_string,
             name=self.name,
@@ -947,6 +967,7 @@ class AnsibleModuleBaseVmware(UtilsBase):
 
         content = jinja2_renderer(
             self.template_file,
+            "vmware_rest",
             arguments=indent(arguments, 4),
             documentation=documentation,
             list_index=self.list_index(),
@@ -1316,29 +1337,28 @@ def generate_vmware_rest(args: Iterable):
 
 def main():
 
-    generator = get_generator()
-    if not generator:
-        raise Exception("gouttelette.yaml is missing generator value")
+    parser = argparse.ArgumentParser(description="Build cloud collection modules.")
 
-    generator_coll = re.sub("(.*)_code_generator", r"\1", generator["name"])
-    parser = argparse.ArgumentParser(
-        description=f"Build the {generator['name']} modules."
+    parser.add_argument(
+        "--collection",
+        dest="collection",
+        type=str,
+        default="amazon_cloud",
+        help=f"The collection for which the modules are generated (Values: amazon_cloud/vmware_rest default: amazon_cloud)",
     )
 
     parser.add_argument(
         "--target-dir",
         dest="target_dir",
         type=pathlib.Path,
-        default=pathlib.Path(generator["default_path"]),
-        help=f"location of the target repository (default: {generator['default_path']})",
+        help=f"location of the target repository (default: ./cloud or ./vmware_rest)",
     )
 
     parser.add_argument(
         "--modules",
         dest="modules",
         type=pathlib.Path,
-        default=pathlib.Path(f"gouttelette/config/{generator_coll}"),
-        help=f"location of the modules.yaml file (default: gouttelette/config/<generator>)",
+        help=f"location of the modules.yaml file (default: gouttelette/config/<collection>)",
     )
 
     parser.add_argument(
@@ -1349,15 +1369,16 @@ def main():
     )
     parser.add_argument(
         "--schema-dir",
+        dest="schema_dir",
         type=pathlib.Path,
-        default=pathlib.Path(f"gouttelette/api_specifications/{generator_coll}"),
-        help="location where to store the collected schemas (default: ./gouttelette/api_specifications/<generator>)",
+        help="location where to store the collected schemas (default: ./gouttelette/api_specifications/<collection>)",
     )
-    args = parser.parse_args()
-    func = "generate_" + generator_coll + "(args)"
+    args = set_defaults(parser.parse_args())
+
+    func = "generate_" + args.collection + "(args)"
     eval(func)
 
-    info = VersionInfo(generator["name"])
+    info = VersionInfo("gouttelette")
     dev_md = args.target_dir / "dev.md"
     dev_md.write_text(
         (
