@@ -1,7 +1,7 @@
 import argparse
 import pathlib
 import re
-from typing import Dict, Iterable, List, Optional, TypedDict
+from typing import Dict, List, Optional, TypedDict
 import boto3
 from .resources import RESOURCES
 from .generator import CloudFormationWrapper

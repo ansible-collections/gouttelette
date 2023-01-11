@@ -1,0 +1,9 @@
+# amazon_cloud
+jinja2
+ruamel.yaml
+pbr
+pyyaml
+redbaron
+baron
+boto3
+git+https://github.com/ansible-collections/gouttelette
