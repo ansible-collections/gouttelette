@@ -1,0 +1,5 @@
+flake8
+pytest
+ansible-core
+pytest-cov
+coverage
