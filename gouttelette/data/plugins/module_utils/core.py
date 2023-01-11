@@ -36,6 +36,10 @@ from itertools import count
 from typing import Iterable, List, Dict, Optional, Union
 
 from ansible_collections.amazon.aws.plugins.module_utils.ec2 import AWSRetry
+from ansible_collections.amazon.aws.plugins.module_utils.core import AnsibleAWSModule
+from ansible_collections.amazon.aws.plugins.module_utils.common import (
+    set_collection_info,
+)
 from .utils import (
     normalize_response,
     scrub_keys,
@@ -59,6 +63,9 @@ try:
 except ImportError:
     BOTO3_IMP_ERR = traceback.format_exc()
     HAS_BOTO3 = False
+
+AMAZON_CLOUD_COLLECTION_NAME = "amazon.cloud"
+AMAZON_CLOUD_COLLECTION_VERSION = "0.2.0"
 
 
 class CloudControlResource(object):
@@ -509,3 +516,13 @@ class CloudControlResource(object):
             results["diff"] = diffs
 
         return results
+
+
+class AnsibleAmazonCloudModule(AnsibleAWSModule):
+    def __init__(self, **kwargs):
+
+        super(AnsibleAmazonCloudModule, self).__init__(**kwargs)
+        set_collection_info(
+            collection_name=AMAZON_CLOUD_COLLECTION_NAME,
+            collection_version=AMAZON_CLOUD_COLLECTION_VERSION,
+        )
