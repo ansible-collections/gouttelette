@@ -11,7 +11,6 @@ import pkg_resources
 from pbr.version import VersionInfo
 from .content_library_data import content_library_static_ds
 import yaml
-import json
 import copy
 
 from gouttelette.utils import (
@@ -847,7 +846,6 @@ class AnsibleModuleBaseVmware(UtilsBase):
         def get_next(properties: List) -> Iterable:
             required_keys = []
             for i, v in enumerate(properties):
-                required = v.get("required")
                 if "schema" in v:
                     if "properties" in v["schema"]:
                         properties[i] = v["schema"]["properties"]
@@ -1358,7 +1356,7 @@ def main():
         "--modules",
         dest="modules",
         type=pathlib.Path,
-        help=f"location of the modules.yaml file (default: gouttelette/config/<collection>)",
+        help="location of the modules.yaml file (default: gouttelette/config/<collection>)",
     )
 
     parser.add_argument(

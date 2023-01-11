@@ -4,7 +4,7 @@ import argparse
 import collections
 import io
 from pathlib import Path
-from typing import Dict, List, Any, Union, Callable
+from typing import Dict, List, Any, Union
 import re
 import ruamel.yaml
 import yaml
