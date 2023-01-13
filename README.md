@@ -1,7 +1,7 @@
 # Gouttelette
 ## _Cloud Content Code Generator_
 
-This repository contains the `gouttelette` package, a well tested python libraries that generates the cloud collections [``amazon.cloud``](https://github.com/ansible-collections/amazon.cloud) and [``vmware.vmware_rest``](https://github.com/ansible-collections/vmware.vmware_rest).
+This repository contains the `gouttelette` package, a well tested python library that generates the cloud collections [``amazon.cloud``](https://github.com/ansible-collections/amazon.cloud) and [``vmware.vmware_rest``](https://github.com/ansible-collections/vmware.vmware_rest).
 
 This tool reuses the functionalities of the existing [amazon_cloud_code_generator](https://github.com/ansible-collections/amazon_cloud_code_generator) and [vmware_rest_code_generator](https://github.com/ansible-collections/vmware_rest_code_generator). These generators will be archived in the future.
 
@@ -23,7 +23,7 @@ Apart from the above requirements, the tool needs
 
 The ``gouttelette`` generator is capable of performing the following functionalities
 
-- [`refresh_modules`](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/refresh_modules.py) : Generates the modules specified in [resources.py](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/resources.py). It is important to make sure the rest schema and modules list files are present in the default location (details below), if not passed as input arguments.
+- [`refresh_modules`](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/refresh_modules.py) : Generates the modules specified in [resources.py](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/resources.py). It is important to make sure the REST schema and modules list files are present in the default location (details below), if not passed as input arguments.
 ```
   python -m gouttelette.cmd.refresh_modules --collection <collection_name> --target-dir <path> --modules <path> --next-version <version> --schema-dir <path>
 ```
@@ -44,7 +44,7 @@ The ``gouttelette`` generator is capable of performing the following functionali
 | ------ | ------ |
 | schema-dir | Location where the generated schemas will be stored (default: ./gouttelette/api_specifications/amazon_cloud |
 
-- [`refresh_examples`](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/refresh_examples.py): Generates the examples by executing the integration tests and populates the EXAMPLE block of the module documentation.
+- [`refresh_examples`](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/refresh_examples.py): Generates the examples by using the content of the tests/ directory under target-dir that is passed as an argument (or the default location).
 ```
   python -m gouttelette.cmd.refresh_examples  --target-dir <path>
 ```
@@ -63,31 +63,67 @@ The ``gouttelette`` generator is capable of performing the following functionali
 ### _Refresh modules from gouttelette_
 
 - Clone [``gouttelette repo ``](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette).
+
 ```
 git clone https://github.com/ansible-collections/gouttelette
 ```
+
 - From gouttelette execute the following command
+
 ```
 python -m gouttelette.cmd.refresh_modules --collection "amazon_cloud"
 ```
+
 The default values are taken for the other input arguments.
-Same steps are followed to refresh schema , refresh examples and refresh ignore files.
+Same steps are followed to refresh schema, refresh examples and refresh ignore files.
 
 ### _Referesh modules from amazon.cloud or vmware.vmware_rest_
 
 - Clone the collection repository
+_For vmware_rest_
+
 ```
 mkdir -p ~/.ansible/collections/ansible_collections/vmware/vmware_rest
 cd ~/.ansible/collections/ansible_collections/vmware/vmware_rest
 git clone https://github.com/ansible-collections/vmware.vmware_rest
 tox -e refresh_modules
-``` 
+```
 
-We can specify the version
+_For amazon.cloud_
 ```
-tox -e refresh_modules --vetsion "2.0.0"
+mkdir -p ~/.ansible/collections/ansible_collections/amazon/cloud
+cd ~/.ansible/collections/ansible_collections/amazon/cloud
+git clone https://github.com/ansible-collections/amazon.cloud
+tox -e refresh_modules
 ```
+
+Version can be specified as follows
+
+```
+tox -e refresh_modules --version "2.0.0"
+```
+
+Plugins documentation located in `~/.ansible/collections/ansible_collections/amazon/cloud/docs` can be refreshed by running (same applies for vmware.vmware_rest).
+
+```tox -e add_docs```
+
+`ansible-test` can be used to validate the generated content
+
+```
+virtualenv -p python3.9 ~/tmp/venv-tmp-py39-aws
+source ~/tmp/venv-tmp-py39-aws/bin/activate pip install -r requirements.txt -r test-requirements.txt ansible
+ansible-test sanity --requirements --local --python 3.9 -vvv
+```
+
+All integration tests for the collection can be executed using:
+
+```
+ansible-test integration --requirements --docker
+
+```
+
 ## Contributing
+
 We welcome community contributions and if you find problems, please open an issue or create a Pull Request. You can also join us in the:
     - `#ansible-aws` [irc.libera.chat](https://libera.chat/) channel
     - `#ansible` (general use questions and support), `#ansible-community` (community and collection development questions), and other [IRC channels](https://docs.ansible.com/ansible/devel/community/communication.html#irc-channels).
