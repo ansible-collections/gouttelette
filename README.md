@@ -32,7 +32,7 @@ The ``gouttelette`` generator is capable of performing the following functionali
 | ------ | ------ |
 | collection | The collection for which the modules are generated (values: amazon_cloud or vmware_rest, default: amazon_cloud) |
 | target-dir | Location of the target repository (default: ./cloud or ./vmware_rest) |
-| modules | Location of the [modules.yaml](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/config/amazon_cloud/modules.yaml) file (default: gouttelette/config/<collection>)|
+| modules | Location of the [modules.yaml](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/config/amazon_cloud/modules.yaml) file (default: gouttelette/config/<collection>). modules.yaml has an entry for each of the AWS modules that are to be generated. Each entry should have the module's name. Other information that will be used in the module's DOCUMENTATION like short_description, description, etc can be added to the entry.|
 | next-version | The next major version (default: "TODO" |
 | schema-dir | Location of the collected schemas (default: ./gouttelette/api_specifications/<collection> |
 
