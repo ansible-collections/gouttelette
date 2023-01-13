@@ -80,6 +80,7 @@ Same steps are followed to refresh schema, refresh examples and refresh ignore f
 ### _Referesh modules from amazon.cloud or vmware.vmware_rest_
 
 - Clone the collection repository
+
 _For vmware_rest_
 
 ```
@@ -115,7 +116,7 @@ source ~/tmp/venv-tmp-py39-aws/bin/activate pip install -r requirements.txt -r t
 ansible-test sanity --requirements --local --python 3.9 -vvv
 ```
 
-All integration tests for the collection can be executed using:
+All integration tests for the collection can be executed using
 
 ```
 ansible-test integration --requirements --docker
