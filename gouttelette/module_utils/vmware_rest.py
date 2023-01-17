@@ -271,8 +271,6 @@ async def update_changed_flag(data, status, operation):
 
 
 async def list_devices(session, url):
-    existing_entries = []
-
     async with session.get(url) as resp:
         _json = await resp.json()
         return _json

@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
-import pkg_resources
 from gouttelette import utils
-
-from unittest.mock import patch
 
 
 def test_format_documentaion():
