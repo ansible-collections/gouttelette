@@ -27,7 +27,6 @@ from gouttelette.utils import (
 
 from typing import Dict, Iterable, List, DefaultDict, Union, Optional, TypeVar, Type
 
-from .resources import RESOURCES
 from .generator import generate_documentation
 
 
@@ -1115,7 +1114,12 @@ class SwaggerFile:
 def generate_amazon_cloud(args: Iterable):
     module_list = []
 
-    for type_name in RESOURCES:
+    modules_file_path = pathlib.Path("gouttelette/config/amazon_cloud/modules.yaml")
+    module_file_dicts = yaml.load(modules_file_path.read_text(), Loader=yaml.FullLoader)
+
+    for module in module_file_dicts:
+        for k, v in module.items():
+            type_name = v['resource']
         file_name = re.sub("::", "_", type_name)
         print(f"Generating modules {file_name}")
         schema_dir = pathlib.Path(args.schema_dir).parents[1]

@@ -1,9 +1,9 @@
 import argparse
+import yaml
 import pathlib
 import re
 from typing import Dict, List, Optional, TypedDict
 import boto3
-from .resources import RESOURCES
 from .generator import CloudFormationWrapper
 import json
 from gouttelette.utils import camel_to_snake
@@ -55,7 +55,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    for type_name in RESOURCES:
+    modules_file_path = pathlib.Path("gouttelette/config/amazon_cloud/modules.yaml")
+    module_file_dicts = yaml.load(modules_file_path.read_text(), Loader=yaml.FullLoader)
+
+    for module in module_file_dicts:
+        for k, v in module.items():
+            type_name = v['resource']
         print("Collecting Schema")
         print(type_name)
         cloudformation = CloudFormationWrapper(boto3.client("cloudformation"))
