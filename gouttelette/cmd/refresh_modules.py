@@ -1119,7 +1119,7 @@ def generate_amazon_cloud(args: Iterable):
 
     for module in module_file_dicts:
         for k, v in module.items():
-            type_name = v['resource']
+            type_name = v["resource"]
         file_name = re.sub("::", "_", type_name)
         print(f"Generating modules {file_name}")
         schema_dir = pathlib.Path(args.schema_dir).parents[1]

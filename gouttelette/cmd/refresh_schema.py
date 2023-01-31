@@ -60,7 +60,7 @@ def main() -> None:
 
     for module in module_file_dicts:
         for k, v in module.items():
-            type_name = v['resource']
+            type_name = v["resource"]
         print("Collecting Schema")
         print(type_name)
         cloudformation = CloudFormationWrapper(boto3.client("cloudformation"))
