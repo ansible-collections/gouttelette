@@ -56,10 +56,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # modules_file_path = pathlib.Path("gouttelette/config/amazon_cloud/modules.yaml")
-    # module_file_dicts = yaml.load(modules_file_path.read_text(), Loader=yaml.FullLoader)
-    modules_file_path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'config/amazon_cloud/modules.yaml'))
-    module_file_dicts = yaml.load(pathlib.Path(modules_file_path).read_text(), Loader=yaml.FullLoader)
+    modules_file_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "..", "config/amazon_cloud/modules.yaml"
+        )
+    )
+    module_file_dicts = yaml.load(
+        pathlib.Path(modules_file_path).read_text(), Loader=yaml.FullLoader
+    )
 
     for module in module_file_dicts:
         for k, v in module.items():
