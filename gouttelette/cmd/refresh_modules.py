@@ -1253,10 +1253,6 @@ def generate_amazon_cloud(args: Iterable):
     with open(runtime_file, "w") as file:
         yaml.safe_dump(yaml_dict, file, sort_keys=False)
 
-    collection_dir = pkg_resources.resource_filename("gouttelette", "data")
-    print(f"Copying files from {collection_dir}")
-    shutil.copytree(collection_dir, args.target_dir, dirs_exist_ok=True)
-
     return
 
 
