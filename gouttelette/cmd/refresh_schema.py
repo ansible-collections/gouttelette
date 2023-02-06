@@ -29,7 +29,7 @@ def generate_schema(raw_content) -> Dict:
     schema: Dict[str, Schema] = json_content
 
     for key, value in schema.items():
-        if key != "anyOf":
+        if key not in ("anyOf", "oneOf"):
             if isinstance(value, list):
                 elems = []
                 for v in value:
