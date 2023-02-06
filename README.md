@@ -101,7 +101,7 @@ tox -e refresh_modules
 Version can be specified as follows
 
 ```
-tox -e refresh_modules --version "2.0.0"
+tox -e refresh_modules -- --next-version "2.0.0"
 ```
 
 Plugins documentation located in `~/.ansible/collections/ansible_collections/amazon/cloud/docs` can be refreshed by running (same applies for vmware.vmware_rest).
