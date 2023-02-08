@@ -23,7 +23,7 @@ Apart from the above requirements, the tool needs
 
 The ``gouttelette`` generator is capable of performing the following functionalities
 
-- [`refresh_modules`](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/refresh_modules.py) : Generates the modules specified in [resources.py](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/resources.py). It is important to make sure the REST schema and modules list files are present in the default location (details below), if not passed as input arguments.
+- [`refresh_modules`](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/cmd/refresh_modules.py) : Generates the modules specified in [modules.yaml](https://github.com/ansible-collections/gouttelette/blob/main/gouttelette/config/amazon_cloud/modules.yaml). It is important to make sure the REST schema and modules list files are present in the default location (details below), if not passed as input arguments.
 ```
   python -m gouttelette.cmd.refresh_modules --collection <collection_name> --target-dir <path> --modules <path> --next-version <version> --schema-dir <path>
 ```
