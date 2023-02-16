@@ -56,11 +56,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    modules_file_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "..", "config/amazon_cloud/modules.yaml"
-        )
-    )
+    if args.get("resource"):
+        modules_file_path = pathlib.Path(args.get("resource") + "/modules.yaml")
+    else:
+        modules_file_path = pathlib.Path("gouttelette/config/")
+
     module_file_dicts = yaml.load(
         pathlib.Path(modules_file_path).read_text(), Loader=yaml.FullLoader
     )
