@@ -53,8 +53,6 @@ RESOURCES = [
     "AWS::WAFv2::IPSet",
     "AWS::WAFv2::LoggingConfiguration",
     "AWS::WAFv2::RegexPatternSet",
-    "AWS::WAFv2::RuleGroup",
-    "AWS::WAFv2::WebACL",
     "AWS::WAFv2::WebACLAssociation",
     "AWS::ECR::Repository",
     "AWS::ECS::CapacityProvider",
