@@ -193,6 +193,7 @@
         - Creates and manages a metric stream.
         - Metrics streams can automatically stream CloudWatch metrics to AWS destinations including Amazon S3 and to many third-party solutions.
         - For more information, see U(https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Metric-Streams.html).
+# 0.3.0
 - rds_db_instance:
     documentation:
       short_description: Creates and manages resource creates an Amazon DB instance
@@ -247,8 +248,7 @@
         - Creates and manages an association between logging destinations and a web ACL resource, for logging from AWS WAF.
         - For more information see U(https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-wafv2-loggingconfiguration.html).
 - wafv2_regex_pattern_set:
-    - wafv2_logging_configuration:
-      documentation:
+    documentation:
       short_description: Creates and manages an AWS WAFv2 Regex Pattern Set
       description:
         - Creates and manages an AWS WAFv2 Regex Pattern Set.

@@ -1,3 +1,8 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2023, Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 import argparse
 import pathlib
 import re
@@ -41,6 +46,8 @@ def generate_schema(raw_content) -> Dict:
                         elems.append(camel_to_snake(v.split("/")[-1].strip()))
 
                 schema[key] = elems
+        else:
+            schema.pop("anyOf") or schema.pop("oneOf")
 
     return schema
 

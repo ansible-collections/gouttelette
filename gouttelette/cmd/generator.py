@@ -242,6 +242,7 @@ class Documentation:
             "patternProperties",
             "maxItems",
             "minItems",
+            "$comment",
         ]
         self.replace_keys(self.options, self.definitions)
         self.cleanup_required(self.options)
