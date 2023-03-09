@@ -46,8 +46,6 @@ def generate_schema(raw_content) -> Dict:
                         elems.append(camel_to_snake(v.split("/")[-1].strip()))
 
                 schema[key] = elems
-        else:
-            schema.pop("anyOf") or schema.pop("oneOf")
 
     return schema
 
