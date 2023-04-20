@@ -5,6 +5,7 @@ import argparse
 import json
 
 import pathlib
+import os
 import re
 import shutil
 import pkg_resources
@@ -27,7 +28,6 @@ from gouttelette.utils import (
 
 from typing import Dict, Iterable, List, DefaultDict, Union, Optional, TypeVar, Type
 
-from .resources import RESOURCES
 from .generator import generate_documentation
 
 
@@ -1115,7 +1115,15 @@ class SwaggerFile:
 def generate_amazon_cloud(args: Iterable):
     module_list = []
 
-    for type_name in RESOURCES:
+    modules_file_path = args.get("resource")
+
+    module_file_dicts = yaml.load(
+        pathlib.Path(modules_file_path).read_text(), Loader=yaml.FullLoader
+    )
+
+    for module in module_file_dicts:
+        for k, v in module.items():
+            type_name = v["resource"]
         file_name = re.sub("::", "_", type_name)
         print(f"Generating modules {file_name}")
         schema_dir = pathlib.Path(args.schema_dir).parents[1]
@@ -1131,13 +1139,12 @@ def generate_amazon_cloud(args: Iterable):
 
         module = AnsibleModuleBaseAmazon(schema=schema)
 
-        if module.is_trusted(args.modules):
-            module.renderer(
-                target_dir=args.target_dir,
-                module_dir=args.modules,
-                next_version=args.next_version,
-            )
-            module_list.append(module.name)
+        module.renderer(
+            target_dir=args.target_dir,
+            module_dir=args.modules,
+            next_version=args.next_version,
+        )
+        module_list.append(module.name)
 
     modules = [f"plugins/modules/{module}.py" for module in module_list]
     module_utils = ["plugins/module_utils/core.py", "plugins/module_utils/utils.py"]
