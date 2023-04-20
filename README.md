@@ -1,5 +1,12 @@
+This repository is archived. [``Content Builder``](https://github.com/ansible-community/ansible.content_builder) tool should be used to generate
+[``amazon.cloud``](https://github.com/ansible-collections/amazon.cloud) and [``vmware.vmware_rest``](https://github.com/ansible-collections/vmware.vmware_rest) collections. If you face issues or have queries please submit an issue on [``Content Builder``](https://github.com/ansible-community/ansible.content_builder) repository.
+
 # Gouttelette
 ## _Cloud Content Code Generator_
+
+
+
+
 
 This repository contains the `gouttelette` package, a well tested python library that generates the cloud collections [``amazon.cloud``](https://github.com/ansible-collections/amazon.cloud) and [``vmware.vmware_rest``](https://github.com/ansible-collections/vmware.vmware_rest).
 
