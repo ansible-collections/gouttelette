@@ -1,5 +1,7 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2023, Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 import argparse
 import json
@@ -1145,7 +1147,7 @@ def generate_amazon_cloud(args: Iterable):
     ignore_dir = args.target_dir / "tests" / "sanity"
     ignore_dir.mkdir(parents=True, exist_ok=True)
 
-    for version in ["2.9", "2.10", "2.11", "2.12", "2.13", "2.14"]:
+    for version in ["2.9", "2.10", "2.11", "2.12", "2.13", "2.14", "2.15"]:
         per_version_ignore_content = ""
         skip_list = []
 
@@ -1177,12 +1179,24 @@ def generate_amazon_cloud(args: Iterable):
             "plugins/modules/route53_key_signing_key.py",
             "plugins/modules/redshift_endpoint_authorization.py",
             "plugins/modules/eks_fargate_profile.py",
+            "plugins/modules/autoscaling_launch_configuration.py",
+            "plugins/modules/ecr_repository.py",
+            "plugins/modules/rds_db_instance.py",
+            "plugins/modules/ssm_resource_data_sync.py",
+            "plugins/modules/logs_metric_filter.py",
+            "plugins/modules/ecs_cluster.py",
         ]
         mutually_exclusive_skip = [
             "plugins/modules/eks_addon.py",
             "plugins/modules/eks_fargate_profile.py",
             "plugins/modules/redshift_endpoint_authorization.py",
             "plugins/modules/route53_key_signing_key.py",
+            "plugins/modules/autoscaling_lifecycle_hook.py",
+            "plugins/modules/ecs_primary_task_set.py",
+            "plugins/modules/logs_metric_filter.py",
+            "plugins/modules/wafv2_ip_set.py",
+            "plugins/modules/wafv2_regex_pattern_set.py",
+            "plugins/modules/wafv2_web_acl_association.py",
         ]
 
         for f in module_utils:

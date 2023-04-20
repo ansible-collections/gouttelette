@@ -1,3 +1,8 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2023, Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 import argparse
 import pathlib
 import re
@@ -29,7 +34,7 @@ def generate_schema(raw_content) -> Dict:
     schema: Dict[str, Schema] = json_content
 
     for key, value in schema.items():
-        if key != "anyOf":
+        if key not in ("anyOf", "oneOf"):
             if isinstance(value, list):
                 elems = []
                 for v in value:

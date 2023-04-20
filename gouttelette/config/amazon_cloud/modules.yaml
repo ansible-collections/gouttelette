@@ -117,7 +117,8 @@
       short_description: Creates and manages Amazon EKS add-ons
       description:
         - Creates and manages Amazon EKS add-ons.
-        - Amazon EKS add-ons require clusters running version 1.18 or later because Amazon EKS add-ons rely on the Server-side Apply Kubernetes feature, which is only available in Kubernetes 1.18 and later.
+        - Amazon EKS add-ons require clusters running version 1.18 or later because Amazon EKS add-ons rely on the Server-side Apply
+          Kubernetes feature, which is only available in Kubernetes 1.18 and later.
         - For more information see U(https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html).
 - iam_server_certificate:
     documentation:
@@ -182,7 +183,8 @@
       short_description: Creates and manages a composite alarm
       description:
         - Creates and manages a composite alarm.
-        - When you create a composite alarm, you specify a rule expression for the alarm that takes into account the alarm states of other alarms that you have created.
+        - When you create a composite alarm, you specify a rule expression for the alarm that takes into account the alarm states of other alarms
+          that you have created.
         - The composite alarm goes into ALARM state only if all conditions of the rule are met.
 - cloudwatch_metric_stream:
     documentation:
@@ -191,3 +193,142 @@
         - Creates and manages a metric stream.
         - Metrics streams can automatically stream CloudWatch metrics to AWS destinations including Amazon S3 and to many third-party solutions.
         - For more information, see U(https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Metric-Streams.html).
+# 0.3.0
+- rds_db_instance:
+    documentation:
+      short_description: Creates and manages resource creates an Amazon DB instance
+      description:
+        - Creates and manages resource creates an Amazon DB instance.
+        - The new DB instance can be an RDS DB instance, or it can be a DB instance in an Aurora DB cluster.
+- rds_db_cluster_parameter_group:
+    documentation:
+      short_description: Creates and manages an Amazon Aurora DB cluster or Multi-AZ DB cluster
+      description:
+        - Creates and manages an Amazon Aurora DB cluster or Multi-AZ DB cluster.
+- rds_db_subnet_group:
+    documentation:
+      short_description: Creates and manages a database subnet group
+      description:
+        - Creates and manages a database subnet group.
+        - Subnet groups must contain at least two subnets in two different Availability Zones in the same region.
+- rds_global_cluster:
+    documentation:
+      short_description: Creates and manages an Amazon Aurora global database spread across multiple AWS Regions
+      description:
+        - Creates and manages an Amazon Aurora global database spread across multiple AWS Regions.
+- rds_option_group:
+    documentation:
+      short_description: Creates and manages an option group
+      description:
+        - Creates and manages an option group, to enable and configure features that are specific to a particular DB engine.
+- ssm_document:
+    documentation:
+      short_description: Creates and manages a Systems Manager (SSM) document
+      description:
+        - Creates and manages a Systems Manager (SSM) document in AWS Systems Manager.
+        - This document defines the actions that Systems Manager performs on your AWS resources.
+- ssm_resource_data_sync:
+    documentation:
+      short_description: Creates and manages a resource data sync
+      description:
+        - Creates and manages a resource data sync for AWS Systems Manager.
+        - A resource data sync helps you view data from multiple sources in a single location.
+- wafv2_ip_set:
+    documentation:
+      short_description: Creates and manages and IP set
+      description:
+        - Creates and manages and IP set to identify web requests that originate from specific IP addresses or ranges of IP addresses.
+        - For example, if you're receiving a lot of requests from a ranges of IP addresses, you can configure AWS WAF to block them using an IP set
+          that lists those IP addresses.
+        - For more information see U(https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-wafv2-ipset.html).
+- wafv2_logging_configuration:
+    documentation:
+      short_description: Creates and manages an association between logging destinations and a web ACL resource
+      description:
+        - Creates and manages an association between logging destinations and a web ACL resource, for logging from AWS WAF.
+        - For more information see U(https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-wafv2-loggingconfiguration.html).
+- wafv2_regex_pattern_set:
+    documentation:
+      short_description: Creates and manages an AWS WAFv2 Regex Pattern Set
+      description:
+        - Creates and manages an AWS WAFv2 Regex Pattern Set.
+        - Use an AWS WAFv2 Regex Pattern Set to have AWS WAF inspect a web request component for a specific set of regular expression patterns.
+- wafv2_web_acl_association:
+    documentation:
+      short_description: Creates and manages a web ACL association
+      description:
+        - Creates and manages a web ACL association.
+        - Use a web ACL association to define an association between a web ACL and a regional application resource, to protect the resource.
+- ecr_repository:
+    documentation:
+      short_description: Creates and manages an AWS ECR Repository resource
+      description:
+        - The AWS ECR Repository resource specifies an Amazon Elastic Container Registry (Amazon ECR) repository, where users can push
+          and pull Docker images, Open Container Initiative (OCI) images, and OCI compatible artifacts.
+        - For more information see U(https://docs.aws.amazon.com/AmazonECR/latest/userguide/Repositories.html).
+- ecs_capacity_provider:
+    documentation:
+      short_description: Creates and manages a capacity provider
+      description:
+        - Creates and manages a capacity provider.
+        - Capacity providers are associated with an Amazon ECS cluster and are used in capacity provider strategies to facilitate cluster auto scaling.
+- ecs_cluster:
+    documentation:
+      short_description: Creates and manages an Amazon Elastic Container Service (Amazon ECS) cluster
+      description:
+        - Creates and manages an Amazon Elastic Container Service (Amazon ECS) cluster.
+- ecs_cluster_capacity_provider_associations:
+    documentation:
+      short_description: Creates and manages the association between one or more capacity providers and a default capacity provider
+          strategy with a cluster
+      description:
+        - The AWS ECS Cluster Capacity Provider Associations resource associates one or more capacity providers and a default capacity provider
+          strategy with a cluster.
+- ecs_primary_task_set:
+    documentation:
+      short_description: Specifies which task set in a service is the primary task set.
+      description:
+        - Specifies which task set in a service is the primary task set.
+        - Any parameters that are updated on the primary task set in a service will transition to the service.
+        - This is used when a service uses the EXTERNAL deployment controller type.
+- iam_instance_profile:
+    documentation:
+      short_description: Creates and manages an instance profile
+      description:
+        - Creates and manages an instance profile.
+        - For more information see U(https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-instanceprofile.html).
+- logs_metric_filter:
+    documentation:
+      short_description: Specifies a metric filter that describes how CloudWatch Logs extracts information from logs and transforms it into Amazon CloudWatch metrics
+      description:
+        - Specifies a metric filter that describes how CloudWatch Logs extracts information from logs and transforms it into Amazon CloudWatch metrics.
+        - If you have multiple metric filters that are associated with a log group, all the filters are applied to the log streams in that group.
+        - The maximum number of metric filters that can be associated with a log group is 100.
+- ec2_placement_group:
+    documentation:
+      short_description: Creates and manages a placement group
+      description:
+        - Specifies a placement group in which to launch instances.
+        - The strategy of the placement group determines how the instances are organized within the group.
+        - For more information see U(https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-placementgroup.html).
+- autoscaling_launch_configuration:
+    documentation:
+      short_description: Creates and manages a web ACL association.
+      description:
+        - Creates and manages a web ACL association.
+        - Use a web ACL association to define an association between a web ACL and a regional application resource, to protect the resource.
+- autoscaling_lifecycle_hook:
+    documentation:
+      short_description: Creates and manages an Auto Scaling group
+      description:
+        - Creates and manages an Auto Scaling group.
+        - The AWS AutoScaling Lifecycle Hook resource specifies lifecycle hooks for an Auto Scaling group.
+        - These hooks let you create solutions that are aware of events in the Auto Scaling instance lifecycle, and then perform a custom action on instances when the
+          corresponding lifecycle event occurs.
+        - A lifecycle hook provides a specified amount of time (one hour by default) to wait for the action to complete before the instance transitions to the next state.
+- autoscaling_warm_pool:
+    documentation:
+      short_description: Creates and manages a pool of pre-initialized EC2 instances that sits alongside the Auto Scaling group
+      description:
+        - Creates and manages a pool of pre-initialized EC2 instances that sits alongside the Auto Scaling group.
+        - Whenever your application needs to scale out, the Auto Scaling group can draw on the warm pool to meet its new desired capacity.

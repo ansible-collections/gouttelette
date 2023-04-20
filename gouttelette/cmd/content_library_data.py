@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# Copyright: (c) 2023, Ansible Project
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 content_library_static_ds = {
     "{@term field}": "field",
